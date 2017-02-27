@@ -50,7 +50,7 @@ class OneBitLock implements Lock {
      * Constructor for the One-Bit Lock
      */
 	public OneBitLock(int n){
-		//TODO: Implement me!
+		flags = new AtomicIntegerArray(n);
 	}
 
 	/*
@@ -60,8 +60,27 @@ class OneBitLock implements Lock {
      * enter the critical section.
      */
 	public void lock(int processNum){
-		//TODO: Implement me!
+		while (!flags[processNum]) {
+			// Let others know that you are contending for the CS
+			flags[processNum] = 1;
 
+			// Check that all processes smaller than you have their flags set to 0
+			// And if not, put your flag down and reset
+			int index = 0;
+			while (flags[processNum] && index < processNum) {
+				if (flags[index] == 1) {
+					flags[processNum] = 0;
+					while (flags[index] == 1) {};
+					break;
+				}
+				index++;
+			}
+		}
+
+		// Wait for all processes above you to put their flags down
+		for (int index = processNum + 1; index < flags.length; index++) {
+			while (flags[index] == 1) {};
+		}
 	}
 
 	/*
@@ -70,7 +89,7 @@ class OneBitLock implements Lock {
      * free to be grabbed by other processes contending for it.
      */
 	public void unlock(int processNum) {
-		//TODO: Implement me!
+		flags[processNum] = 0;
 	}
 
 }
