@@ -60,8 +60,10 @@ class OneBitLock implements Lock {
      * enter the critical section.
      */
 	public void lock(int processNum){
-		// Let others know that you are contending for the CS
-		while (flags.compareAndSet(processNum, 0, 1)) {
+		while (flags.get(processNum) == 0) {
+			// Let others know that you are contending for the CS
+			flags.set(processNum, 1);
+
 			// Check that all processes smaller than you have their flags set to 0
 			// And if not, put your flag down and reset
 			int index = 0;
@@ -79,6 +81,7 @@ class OneBitLock implements Lock {
 		for (int index = processNum + 1; index < flags.length(); index++) {
 			while (flags.get(index) == 1) {};
 		}
+//		System.out.println(processNum + "LOCK");
 	}
 
 	/*
@@ -87,6 +90,7 @@ class OneBitLock implements Lock {
      * free to be grabbed by other processes contending for it.
      */
 	public void unlock(int processNum) {
+//		System.out.println(processNum + "UNLOCK");
 		flags.set(processNum, 0);
 	}
 
