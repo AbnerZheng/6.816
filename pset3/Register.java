@@ -25,4 +25,13 @@ public class Register {
         val = v;
         seq = s;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || !(obj instanceof Register)) {
+            return false;
+        }
+        Register reg = (Register) obj;
+        return seq == reg.seq && val == reg.val;
+    }
 }

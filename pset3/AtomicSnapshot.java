@@ -1,6 +1,9 @@
 import java.util.concurrent.atomic.*; // for AtomicXXX classes
 import java.util.concurrent.locks.*;  // for Lock and ReentrantLock
 
+import java.util.List;
+import java.util.ArrayList;
+
 class AtomicSnapshot implements Snapshot {
     /**
      * The current values of the snapshot object.
@@ -10,7 +13,8 @@ class AtomicSnapshot implements Snapshot {
      * and changes will be seen across all threads, it does not have a built-in
      * atomic snapshot method.
      */
-    protected final AtomicIntegerArray array;
+    protected final AtomicReferenceArray<Register> array;
+    protected final int numSlots;
     
     /**
      * AtomicSnapshot constructor.
@@ -22,9 +26,29 @@ class AtomicSnapshot implements Snapshot {
      *          The size of the internal snapshot array.
      */
     public AtomicSnapshot(int numSlots) {
-        //TODO: Implement me!
+        // Initialize an array of empty registers
+        array = new AtomicReferenceArray(numSlots);
+        for (int i = 0; i < numSlots; i++) {
+            array.set(i, new Register());
+        }
+
+        // Cache the length of the array
+        this.numSlots = numSlots;
     }
-    
+
+    /**
+     * Reads values from the array one at a time and returns the result.
+     *
+     * @return A linear scan of the shared array.
+     */
+    private List<Register> collect() {
+        List<Register> scan = new ArrayList<>();
+        for (int i = 0; i < numSlots; i++) {
+            scan.add(array.get(i));
+        }
+        return scan;
+    }
+
     /**
      * Gets an atomic snapshot of the values in AtomicSnapshot.
      * 
@@ -38,7 +62,28 @@ class AtomicSnapshot implements Snapshot {
      *          The value of the Snapshot.
      */
     public int[] scan() {
-        //TODO: Implement me!
+
+        // Initialize the first scan
+        List<Register> oldScan = collect();
+
+        while (true) {
+            // Make a second scan
+            List<Register> newScan = collect();
+
+            // Compare the second scan to the first scan
+            // If they aren't the same, try again
+            if (!oldScan.equals(newScan)) {
+                oldScan = newScan;
+                continue;
+            }
+
+            // Otherwise, we got a snapshot
+            int[] res = new int[numSlots];
+            for (int i = 0; i < numSlots; i++) {
+                res[i] = newScan.get(i).val;
+            }
+            return res;
+        }
     }
     
     /**
@@ -55,6 +100,10 @@ class AtomicSnapshot implements Snapshot {
      *          The value to be written.
      */
     public void update(int index, int val) {
-        //TODO: Implement me!
+        Register curRegister = array.get(index);
+        Register newRegister = new Register(curRegister.seq + 1, val);
+
+        // Linearization point
+        array.set(index, newRegister);
     }
 }

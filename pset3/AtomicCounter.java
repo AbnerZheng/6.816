@@ -1,24 +1,24 @@
-public class Counter implements Reader {
+public class AtomicCounter implements Reader {
 
     protected final Snapshot snapshot;
-    
+
     /**
      * Initializes a Counter.
      *
      * @param numServers
      *          The number of servers which it must read from.
      */
-    public Counter(int numServers) {
-        snapshot = new SingleScanSnapshot(numServers);
+    public AtomicCounter(int numServers) {
+        snapshot = new AtomicSnapshot(numServers);
     }
-    
+
     /**
      * Returns the value of the Counter.
-     * 
+     *
      * This method returns the sum of all increments linearized before
      * this method's linearization point.
      * Your implementation only needs to support one thread that calls read().
-     * 
+     *
      * @return
      *          The value of the Counter.
      */
@@ -41,10 +41,10 @@ public class Counter implements Reader {
 
 class CountingServer implements Server {
 
-    protected final Counter counter;
+    protected final AtomicCounter counter;
     protected final int processNum;
     protected int value;
-    
+
     /**
      * Initializes a CountingServer.
      *
@@ -55,7 +55,7 @@ class CountingServer implements Server {
      *          A unique integer that represents the ID of the incrementing
      *          process.
      */
-    public CountingServer(Counter counter, int processNum) {
+    public CountingServer(AtomicCounter counter, int processNum) {
         this.counter = counter;
         this.processNum = processNum;
         this.value = 0;
@@ -63,7 +63,7 @@ class CountingServer implements Server {
 
     /**
      * Increments the value of the Counter.
-     * 
+     *
      * This method must add one to the value of all future calls to read()
      * (on the Counter from the constructor) linearized after this call.
      * Each CountingServer object will only be operated on by one thread.

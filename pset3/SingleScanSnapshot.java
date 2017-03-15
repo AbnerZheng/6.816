@@ -35,7 +35,13 @@ class SingleScanSnapshot implements Snapshot {
      *          The number of allowed concurrent updaters.
      */
     public SingleScanSnapshot(int numScanners) {
-        //TODO: Implement me!
+        curSeq = new AtomicInteger(0);
+        high = new AtomicReferenceArray(numScanners);
+        low = new AtomicReferenceArray(numScanners);
+        for (int i = 0; i < numScanners; i++) {
+            high.set(i, new Register());
+            low.set(i, new Register());
+        }
     }
     
     /**
@@ -52,7 +58,23 @@ class SingleScanSnapshot implements Snapshot {
      *          The value of the Snapshot.
      */
     public int[] scan() {
-        //TODO: Implement me!
+        int len = high.length();
+        int[] view = new int[len];
+
+        // Increment the current timestamp
+        curSeq.set(curSeq.get() + 1);
+
+        for (int j = 0; j < len; j++) {
+            Register highReg = high.get(j);
+            if (highReg.seq < curSeq.get()) {
+                // Value in high register is old
+                view[j] = highReg.val;
+            } else {
+                // Value in high register is fresh, must look in low register
+                view[j] = low.get(j).val;
+            }
+        }
+        return view;
     }
     
     /**
@@ -72,6 +94,15 @@ class SingleScanSnapshot implements Snapshot {
      *          The value to be written.
      */
     public void update(int processNum, int val) {
-        //TODO: Implement me!
+        int seq = curSeq.get();
+        Register highReg = high.get(processNum);
+
+        // If value in the high register is snapped, must preserve it in the low register
+        if (seq != highReg.seq) {
+            low.set(processNum, highReg);
+        }
+
+        // Update the high register with a fresh value
+        high.set(processNum, new Register(val, seq));
     }
 }
