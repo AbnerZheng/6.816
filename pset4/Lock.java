@@ -20,12 +20,12 @@ class TASLock implements Lock {
   /**
    * Checks if the calling thread observes another thread concurrently
    * calling lock(), in the critical section, or calling unlock().
-   * 
+   *
    * @return
    *          true if another thread is present, else false
    */
   public boolean isContended() {
-      //TODO: Implement me!
+    return state.get();
   }
 }
 
@@ -59,7 +59,7 @@ class BackoffLock implements Lock {
     } else {
       Backoff backoff = new Backoff(MIN_DELAY,MAX_DELAY);
       try {
-        backoff.backoff();        
+        backoff.backoff();
       } catch (InterruptedException ignore) {;}
       while(true) {
         while(state.get()) {;}
@@ -70,7 +70,7 @@ class BackoffLock implements Lock {
             backoff.backoff();
           } catch (InterruptedException ignore) {;}
         }
-      }    
+      }
     }
   }
   public void unlock() {
@@ -79,12 +79,12 @@ class BackoffLock implements Lock {
   /**
    * Checks if the calling thread observes another thread concurrently
    * calling lock(), in the critical section, or calling unlock().
-   * 
+   *
    * @return
    *          true if another thread is present, else false
    */
   public boolean isContended() {
-      //TODO: Implement me!
+    return state.get();
   }
 }
 
@@ -102,12 +102,12 @@ class ReentrantWrapperLock implements Lock {
   /**
    * Checks if the calling thread observes another thread concurrently
    * calling lock(), in the critical section, or calling unlock().
-   * 
+   *
    * @return
    *          true if another thread is present, else false
    */
   public boolean isContended() {
-      //TODO: Implement me!
+    return lock.isLocked();
   }
 }
 
