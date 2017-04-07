@@ -128,9 +128,6 @@ class LockAllocator {
     else if( lockType == 2 ) {
       lock = new ReentrantWrapperLock();
     }
-    else if (lockType == 3 ) {
-      lock = new ALock(maxThreads);   // You need to write these...
-    }
     else if( lockType == 4 ) {  
       lock = new CLHLock();           // You need to write these...
     }
@@ -156,9 +153,6 @@ class LockAllocator {
     else if( lockType == 2 ) {
       System.out.println("ReentrantLock");
     }
-    else if (lockType == 3 ) {
-      System.out.println("ALock");
-    }
     else if( lockType == 4 ) {
       System.out.println("CLHLock");
     }
@@ -172,6 +166,7 @@ class LockAllocator {
   }
   public void printLockTypes() {
     for( int i = 0; i < 6; i++ ) {
+      if (i == 3) continue;
       System.out.println(i + ":");
       printLockType(i);
     }
