@@ -46,6 +46,6 @@ public class CLHLock implements Lock {
     }
 
     class QNode {
-        public AtomicBoolean locked = new AtomicBoolean(true);
+        public AtomicBoolean locked = new AtomicBoolean(false);
     }
 }

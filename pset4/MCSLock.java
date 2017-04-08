@@ -30,7 +30,7 @@ public class MCSLock implements Lock {
         if (qnode.next == null) {
             if (tail.compareAndSet(qnode, null))
                 return;
-            // wait until predecessor fills in its next field
+            // wait until successor fills in its next field
             while (qnode.next == null) {}
         }
         qnode.next.locked = false;
@@ -49,7 +49,7 @@ public class MCSLock implements Lock {
     }
 
     class QNode {
-        boolean locked = false;
-        QNode next = null;
+        volatile boolean locked = false;
+        volatile QNode next = null;
     }
 }
