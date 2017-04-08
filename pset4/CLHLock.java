@@ -42,8 +42,7 @@ public class CLHLock implements Lock {
      *          true if another thread is present, else false
      */
     public boolean isContended() {
-        QNode pred = myPred.get();
-        return pred.locked.get();
+        return myNode.get().locked.get();
     }
 
     class QNode {
