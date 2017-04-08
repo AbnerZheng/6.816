@@ -1,11 +1,8 @@
 #!/bin/bash
-javac -d . ../*.java
 
 # Lock Types: 0=TAS, 1=Backoff, 2=ReentrantWrapper, 4=CLH, 5=MCS
 # Strategy: 0=LockFree, 1=HomeQueue, 2=RandomQueue, 3=LastQueue
-TIME=2000
-QDEPTH=8
-TRIALS=5
+source constants.sh
 UNIFORM=0
 
 
@@ -18,39 +15,23 @@ do
     for NUMTHREADS in 1 2 8
     do
         echo "MeanWork $MEAN, NumThreads $NUMTHREADS, Serial"
-        for (( i=1; i<=$TRIALS; i++ ))
-        do
-            java SerialPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i
+        repeat "java SerialPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i"
         done
-        echo
 
         echo "MeanWork $MEAN, NumThreads $NUMTHREADS, LockFree"
-        for (( i=1; i<=$TRIALS; i++ ))
-        do
-            java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH 0 0
+        repeat "java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH 0 0"
         done
-        echo
 
         for LOCK in 0 1 2
         do
             echo "MeanWork $MEAN, NumThreads $NUMTHREADS, Lock #$LOCK, RandomQueue"
-            for (( i=1; i<=$TRIALS; i++ ))
-            do
-                java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH $LOCK 2
-            done
-            echo
+            repeat "java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH $LOCK 2"
         done
 
         for LOCK in 0 1 2
         do
             echo "MeanWork $MEAN, NumThreads $NUMTHREADS, Lock #$LOCK, LastQueue"
-            for (( i=1; i<=$TRIALS; i++ ))
-            do
-                java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH $LOCK 3
-            done
-            echo
+            repeat "java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH $LOCK 3"
         done
     done
 done
-
-rm *.class

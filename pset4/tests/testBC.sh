@@ -1,10 +1,8 @@
 #!/bin/bash
-javac -d . ../*.java
 
 # Lock Types: 0=TAS, 1=Backoff, 2=ReentrantWrapper, 4=CLH, 5=MCS
 # Strategy: 0=LockFree, 1=HomeQueue, 2=RandomQueue, 3=LastQueue
-TIME=2000
-TRIALS=5
+source constants.sh
 
 echo "PART B: LOCK SCALING"
 echo "PART C: FAIRNESS"
@@ -15,12 +13,6 @@ do
     for NUMTHREADS in 1 2 8 32 64
     do
         echo "Lock #$LOCK, $NUMTHREADS Threads"
-        for (( i=1; i<=$TRIALS; i++ ))
-        do
-            java ParallelCounter $TIME $NUMTHREADS $LOCK
-        done
-        echo
+        repeat "java ParallelCounter $TIME $NUMTHREADS $LOCK"
     done
 done
-
-rm *.class
