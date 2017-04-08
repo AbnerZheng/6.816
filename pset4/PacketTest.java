@@ -1,3 +1,5 @@
+import java.util.List;
+import java.util.ArrayList;
 
 class SerialPacket {
   public static void main(String[] args) {
@@ -48,26 +50,48 @@ class ParallelPacket {
     final short strategy = Short.parseShort(args[7]);
 
     @SuppressWarnings({"unchecked"})
-    //
+
     // Allocate and initialize your Lamport queues
-    //
+    List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
+    for (int i = 0; i < numSources; i++) {
+      queues.add(new WaitFreeQueue<Packet>(queueDepth));
+    }
+
     StopWatch timer = new StopWatch();
     PacketSource pkt = new PacketSource(mean, numSources, experimentNumber);
-    // 
+
     // Allocate and initialize locks and any signals used to marshal threads (eg. done signals)
-    // 
+    PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
+    PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
+    LockAllocator lockAllocator = new LockAllocator();
+    List<Lock> locks = new ArrayList<>();
+    for (int i = 0; i < numSources; i++) {
+      locks.add(lockAllocator.getLock(lockType));
+    }
+
     // Allocate and initialize Dispatcher and Worker threads
-    //
+    PacketWorker dispatchData = new Dispatcher(done, queues, pkt, numSources, uniformFlag, queueDepth);
+    Thread dispatchThread = new Thread(dispatchData);
+    List<Thread> workerThreads = new ArrayList<>();
+    for (int i = 0; i < numSources; i++) {
+      PacketWorker workerData = new ParallelPacketWorker(i, done, queues, locks, numSources, strategy);
+      Thread workerThread = new Thread(workerData);
+      workerThreads.add(workerThread);
+    }
+
     // call .start() on your Workers
-    //
+    for (Thread worker : workerThreads)
+      worker.start();
+
     timer.startTimer();
-    // 
+
     // call .start() on your Dispatcher
-    // 
+    dispatchThread.start();
+
     try {
       Thread.sleep(numMilliseconds);
     } catch (InterruptedException ignore) {;}
-    // 
+
     // assert signals to stop Dispatcher - remember, Dispatcher needs to deliver an 
     // equal number of packets from each source
     //
@@ -79,6 +103,14 @@ class ParallelPacket {
     // done signal set to true
     //
     // call .join() for each Worker
+    done.value = true;
+    memFence.value = true;  // memFence is a 'volatile' forcing a memory fence
+    try {                   // which means that done.value is visible to the workers
+      dispatchThread.join();
+      for (Thread workerThread : workerThreads)
+        workerThread.join();
+    } catch (InterruptedException ignore) {;}
+
     timer.stopTimer();
     final long totalCount = dispatchData.totalPackets;
     System.out.println("count: " + totalCount);
