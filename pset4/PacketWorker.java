@@ -2,7 +2,6 @@ import java.util.Random;
 import java.util.List;
 
 public interface PacketWorker extends Runnable {
-    long totalPackets = 0;
     public void run();
 }
 
@@ -51,26 +50,22 @@ class Dispatcher implements PacketWorker {
     // Parameters
     private final int numSources;
     private final boolean uniformBool;
-    private final int queueDepth;
 
     public Dispatcher(PaddedPrimitiveNonVolatile<Boolean> done,
                       List<WaitFreeQueue<Packet>> queues,
                       PacketSource pkt,
                       int numSources,
-                      boolean uniformBool,
-                      int queueDepth) {
+                      boolean uniformBool) {
         this.done = done;
         this.queues = queues;
         this.pkt = pkt;
         this.numSources = numSources;
         this.uniformBool = uniformBool;
-        this.queueDepth = queueDepth;
         assert numSources == queues.size();
     }
 
     public void run() {
         Packet packet;
-        boolean ready = true;
         while (!done.value) {
             // Add a packet to each queue
             for (int i = 0; i < numSources; i++) {
@@ -81,7 +76,7 @@ class Dispatcher implements PacketWorker {
                         totalPackets++;
                         break;
                     } catch (FullException e) {
-                        continue; // Try again
+                        continue; // Try again until it's not full
                     }
                 }
             }

@@ -59,7 +59,7 @@ class ParallelPacket {
       @SuppressWarnings({"unchecked"})
 
       // Allocate and initialize your Lamport queues
-              List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
+      List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
       for (int i = 0; i < numSources; i++) {
         queues.add(new WaitFreeQueue<Packet>(queueDepth));
       }
@@ -77,7 +77,7 @@ class ParallelPacket {
       }
 
       // Allocate and initialize Dispatcher and Worker threads
-      PacketWorker dispatchData = new Dispatcher(done, queues, pkt, numSources, uniformFlag, queueDepth);
+      Dispatcher dispatchData = new Dispatcher(done, queues, pkt, numSources, uniformFlag);
       Thread dispatchThread = new Thread(dispatchData);
       List<Thread> workerThreads = new ArrayList<>();
       for (int i = 0; i < numSources; i++) {

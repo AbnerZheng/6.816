@@ -16,11 +16,9 @@ do
     do
         echo "MeanWork $MEAN, NumThreads $NUMTHREADS, Serial"
         repeat "java SerialPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i"
-        done
 
         echo "MeanWork $MEAN, NumThreads $NUMTHREADS, LockFree"
         repeat "java ParallelPacket $TIME $NUMTHREADS $MEAN $UNIFORM $i $QDEPTH 0 0"
-        done
 
         for LOCK in 0 1 2
         do
