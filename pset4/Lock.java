@@ -50,8 +50,8 @@ class Backoff { // helper class for the BackoffLock
 
 class BackoffLock implements Lock {
   private AtomicBoolean state = new AtomicBoolean(false);
-  int MIN_DELAY = (int)Math.pow(10, 1); // You should tune these parameters...
-  int MAX_DELAY = (int)Math.pow(10, 8);
+  int MIN_DELAY = (int)Math.pow(10, 6); // You should tune these parameters...
+  int MAX_DELAY = (int)Math.pow(10, 7);
 
   public BackoffLock() {};
 

@@ -3,7 +3,7 @@ javac -d . ../*.java
 
 # Parameters
 TIME=2000
-NUMTHREADS=4
+NUMTHREADS=32
 
 # Optimize minDelay and maxDelay for BackoffLock
 #

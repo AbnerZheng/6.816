@@ -1,13 +1,13 @@
 class TestA {
     public static void main(String[] args) {
         System.out.println("Part A: Idle Lock Overhead");
-//        String[] args2 = new String[]{"2000"};
-//        SerialCounter.main(args2);
-//        args2 = new String[]{"2000", "1", "0"};
-//        ParallelCounter.main(args2);
-//        args2 = new String[]{"2000", "1", "1"};
-//        ParallelCounter.main(args2);
-        String[] args2 = new String[]{"2000", "1", "2"};
+        String[] args2 = new String[]{"2000"};
+        SerialCounter.main(args2);
+        args2 = new String[]{"2000", "1", "0"};
+        ParallelCounter.main(args2);
+        args2 = new String[]{"2000", "1", "1"};
+        ParallelCounter.main(args2);
+        args2 = new String[]{"2000", "1", "2"};
         ParallelCounter.main(args2);
         args2 = new String[]{"2000", "1", "4"};
         ParallelCounter.main(args2);
@@ -95,7 +95,7 @@ class TestF {
         System.out.println("Part F: SPEEDUP WITH EXPONENTIAL LOAD");
 
         String[] means = new String[]{"1000", "2000", "4000", "8000"};
-        String[] numThreads = new String[]{"1", "2", "8"};
+        String[] numThreads = new String[]{"1", "2", "8", "32", "64"};
         String[] locks = new String[]{"0", "1", "2"};
         String[] args2;
 
