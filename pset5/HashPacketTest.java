@@ -1,3 +1,6 @@
+import java.util.List;
+import java.util.ArrayList;
+
 class SerialHashPacket {
   public static void main(String[] args) {
 
@@ -52,36 +55,47 @@ class ParallelHashPacket {
     final long mean = Long.parseLong(args[5]);
     final int initSize = Integer.parseInt(args[6]);
     final int numWorkers = Integer.parseInt(args[7]); 
-    final int tableType = Integer.parseInt(args[7]); 
+    final int tableType = Integer.parseInt(args[8]);
+    final int queueDepth = 8;
+    // -1=None, 0=Locking, 1=LockFree, 2=LinearProbe, 3=Cuckoo, 4=Awesome, 5=AppSpecific
 
     StopWatch timer = new StopWatch();
 
     // Allocate and initialize Lamport queues and hash tables (if tableType != -1)
-    List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
-    for (int i = 0; i < numSources; i++) {
-      queues.add(new WaitFreeQueue<Packet>(queueDepth));
+    List<WaitFreeQueue<HashPacket<Packet>>> queues = new ArrayList<>();
+    List<HashTable<Packet>> tables = new ArrayList<>();
+    for (int i = 0; i < numWorkers; i++) {
+      queues.add(new WaitFreeQueue<HashPacket<Packet>>(queueDepth));
+      switch (tableType) {
+        case 0: tables.add(new LockingHashTable<Packet>(initSize, maxBucketSize)); break;
+        case 1: tables.add(new LockFreeHashTable<Packet>(initSize, maxBucketSize)); break;
+        case 2: tables.add(new LinearProbeHashTable<Packet>(initSize, maxBucketSize)); break;
+        case 3: tables.add(new CuckooHashTable<Packet>(initSize, maxBucketSize)); break;
+        case 4: tables.add(new AwesomeHashTable<Packet>(initSize, maxBucketSize)); break;
+        case 5: tables.add(new AppSpecificHashTable<Packet>(initSize, maxBucketSize)); break;
+      }
     }
 
     HashPacketGenerator source = new HashPacketGenerator(fractionAdd,fractionRemove,hitRate,mean);
 
     // initialize your hash table w/ initSize number of add() calls using
-    // source.getAddPacket();
+    for (HashTable<Packet> table : tables) {
+      for (int i = 0; i < initSize; i++) {
+        HashPacket<Packet> addPacket = source.getAddPacket();
+        table.add(addPacket.key, addPacket.body);
+      }
+    }
 
     // Allocate and initialize locks and any signals used to marshal threads (eg. done signals)
     PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
     PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
-    LockAllocator lockAllocator = new LockAllocator();
-    List<Lock> locks = new ArrayList<>();
-    for (int i = 0; i < numSources; i++) {
-      locks.add(lockAllocator.getLock(lockType));
-    }
 
     // Allocate and initialize Dispatcher and Worker threads
-    Dispatcher dispatchData = new Dispatcher(done, queues, pkt, numSources, uniformFlag);
+    HashPacketDispatcher dispatchData = new HashPacketDispatcher(done, queues, source, numWorkers);
     Thread dispatchThread = new Thread(dispatchData);
     List<Thread> workerThreads = new ArrayList<>();
-    for (int i = 0; i < numSources; i++) {
-      PacketWorker workerData = new ParallelPacketWorker(i, done, queues, locks, numSources, strategy);
+    for (int i = 0; i < numWorkers; i++) {
+      HashPacketWorker workerData = new ParallelHashPacketWorker(i, done, queues, tables, numWorkers);
       Thread workerThread = new Thread(workerData);
       workerThreads.add(workerThread);
     }
@@ -118,6 +132,11 @@ class ParallelHashPacket {
     }
 
     timer.stopTimer();
-    // report the total number of packets processed and total time
+
+    // Report the total number of packets processed and total time
+    final long totalCount = dispatchData.totalPackets;
+    System.out.println("count:\t" + totalCount);
+    System.out.println("time:\t" + timer.getElapsedTime());
+    System.out.println("thrpt:\t" + totalCount / timer.getElapsedTime() + " pkts / ms");
   }
 }
