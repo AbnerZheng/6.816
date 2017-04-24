@@ -38,6 +38,7 @@ class LockFreeHashTable<T> implements HashTable<T> {
 
     /**
      * Adds the key value pair to the hash table.
+     * * Overwrites the existing value if key already exists.
      * @param key key to be added
      * @param val corresponding value
      */
@@ -122,7 +123,7 @@ class LockFreeHashTable<T> implements HashTable<T> {
     private void resize() {
         // Acquire all write locks in sequential order
         for (int i = 0; i < locks.length; i++) {
-            locks[i].lock();
+            acquire(i);
         }
 
         // Resize the table
@@ -145,7 +146,7 @@ class LockFreeHashTable<T> implements HashTable<T> {
 
         // Release all write locks
         for (int i = 0; i < locks.length; i++) {
-            locks[i].unlock();
+            release(i);
         }
     }
 }
