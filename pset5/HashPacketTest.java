@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 class SerialHashPacket {
   public static void main(String[] args) {
@@ -63,39 +64,43 @@ class ParallelHashPacket {
 
     // Allocate and initialize Lamport queues and hash tables (if tableType != -1)
     List<WaitFreeQueue<HashPacket<Packet>>> queues = new ArrayList<>();
-    List<HashTable<Packet>> tables = new ArrayList<>();
+    HashTable<Packet> table;
     for (int i = 0; i < numWorkers; i++) {
       queues.add(new WaitFreeQueue<HashPacket<Packet>>(queueDepth));
-      switch (tableType) {
-        case 0: tables.add(new LockingHashTable<Packet>(initSize, maxBucketSize)); break;
-        case 1: tables.add(new LockFreeHashTable<Packet>(initSize, maxBucketSize)); break;
-        case 2: tables.add(new LinearProbeHashTable<Packet>(initSize, maxBucketSize)); break;
-        case 3: tables.add(new CuckooHashTable<Packet>(initSize, maxBucketSize)); break;
-        case 4: tables.add(new AwesomeHashTable<Packet>(initSize, maxBucketSize)); break;
-        case 5: tables.add(new AppSpecificHashTable<Packet>(initSize, maxBucketSize)); break;
-      }
+    }
+    switch (tableType) {
+      case 0: table = new LockingHashTable<Packet>(initSize, maxBucketSize); break;
+      case 1: table = new LockFreeHashTable<Packet>(initSize, maxBucketSize); break;
+      case 2: table = new LinearProbeHashTable<Packet>(initSize, maxBucketSize); break;
+      case 3: table = new CuckooHashTable<Packet>(initSize, maxBucketSize); break;
+      case 4: table = new AwesomeHashTable<Packet>(initSize, maxBucketSize); break;
+      case 5: table = new AppSpecificHashTable<Packet>(initSize, maxBucketSize); break;
+      default: table = null;
     }
 
     HashPacketGenerator source = new HashPacketGenerator(fractionAdd,fractionRemove,hitRate,mean);
 
     // initialize your hash table w/ initSize number of add() calls using
-    for (HashTable<Packet> table : tables) {
-      for (int i = 0; i < initSize; i++) {
-        HashPacket<Packet> addPacket = source.getAddPacket();
-        table.add(addPacket.key, addPacket.body);
-      }
+    for (int i = 0; i < initSize; i++) {
+      HashPacket<Packet> addPacket = source.getAddPacket();
+      table.add(addPacket.key, addPacket.body);
     }
 
     // Allocate and initialize locks and any signals used to marshal threads (eg. done signals)
     PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
     PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
+    List<ReentrantLock> locks = new ArrayList<>();
+    for (int i = 0; i < numWorkers; i++) {
+      // Best strategy from pset 4 was last queue and reentrant lock
+      locks.add(new ReentrantLock(false));
+    }
 
     // Allocate and initialize Dispatcher and Worker threads
     HashPacketDispatcher dispatchData = new HashPacketDispatcher(done, queues, source, numWorkers);
     Thread dispatchThread = new Thread(dispatchData);
     List<Thread> workerThreads = new ArrayList<>();
     for (int i = 0; i < numWorkers; i++) {
-      HashPacketWorker workerData = new ParallelHashPacketWorker(i, done, queues, tables, numWorkers);
+      HashPacketWorker workerData = new ParallelHashPacketWorker(i, done, queues, locks, table, numWorkers);
       Thread workerThread = new Thread(workerData);
       workerThreads.add(workerThread);
     }
