@@ -115,6 +115,37 @@ class ParallelHashPacketWorker implements HashPacketWorker {
   }
 
   public void run() {
+    if (table == null) {
+      runParallelNoLoad();
+    } else {
+      runLastQueue();
+    }
+    cleanUp();
+  }
+
+  private void runParallelNoLoad() {
+    int id;
+    Random rand = new Random();
+    WaitFreeQueue<HashPacket<Packet>> queue;
+    ReentrantLock lock;
+
+    // Choose a random uncontended queue
+    id = pickUncontendedID(rand);
+    queue = queues.get(id);
+    lock = locks.get(id);
+    System.out.println("Parallel no load");
+    while (!done.value) {
+      HashPacket<Packet> pkt = deq(queue, lock);
+      if (pkt == null) {
+        // Pick another random uncontended queue
+        id = pickUncontendedID(rand);
+        lock = locks.get(id);
+        queue = queues.get(id);
+      }
+    }
+  }
+
+  private void runLastQueue() {
     int id;
     Random rand = new Random();
     WaitFreeQueue<HashPacket<Packet>> queue;
@@ -135,7 +166,6 @@ class ParallelHashPacketWorker implements HashPacketWorker {
         queue = queues.get(id);
       }
     }
-    cleanUp();
   }
 
   /**
@@ -196,7 +226,8 @@ class ParallelHashPacketWorker implements HashPacketWorker {
     while (true) {
       try {
         HashPacket<Packet> pkt = queue.deq();
-        processPacket(pkt);
+        if (table != null)
+          processPacket(pkt);
       } catch (EmptyException e) {
         return;
       }
