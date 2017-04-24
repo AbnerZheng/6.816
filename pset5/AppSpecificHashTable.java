@@ -1,5 +1,9 @@
 class AppSpecificHashTable<T> implements HashTable<T> {
 
+    public AppSpecificHashTable(int logSize, int maxProbes) {
+
+    }
+
     public void add(int key, T x) {
         return;
     }
