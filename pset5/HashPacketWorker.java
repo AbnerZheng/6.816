@@ -133,7 +133,6 @@ class ParallelHashPacketWorker implements HashPacketWorker {
     id = pickUncontendedID(rand);
     queue = queues.get(id);
     lock = locks.get(id);
-    System.out.println("Parallel no load");
     while (!done.value) {
       HashPacket<Packet> pkt = deq(queue, lock);
       if (pkt == null) {

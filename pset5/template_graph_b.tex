@@ -1,0 +1,49 @@
+\begin{tikzpicture}
+    \begin{axis}[
+        legend pos = {north west},
+        xlabel = {Number of threads},
+        ylabel = {Speedup},
+        width=10cm,
+        legend style={font=\tiny},
+        title = { \textbf{ $P_+$ = P_ADD, $P_-$ = P_REM, $\rho$ = RHO } }
+    ]
+
+        \legend {
+            HT0_NAME,
+            HT1_NAME,
+            HT2_NAME,
+            HT3_NAME,
+            HT4_NAME,
+        }
+        \addplot coordinates {
+            (HT0_W1_N, HT0_W1_S)
+            (HT0_W2_N, HT0_W2_S)
+            (HT0_W4_N, HT0_W4_S)
+            (HT0_W8_N, HT0_W8_S)
+        };
+        \addplot coordinates {
+            (HT1_W1_N, HT1_W1_S)
+            (HT1_W2_N, HT1_W2_S)
+            (HT1_W4_N, HT1_W4_S)
+            (HT1_W8_N, HT1_W8_S)
+        };
+        \addplot coordinates {
+            (HT2_W1_N, HT2_W1_S)
+            (HT2_W2_N, HT2_W2_S)
+            (HT2_W4_N, HT2_W4_S)
+            (HT2_W8_N, HT2_W8_S)
+        };
+        \addplot coordinates {
+            (HT3_W1_N, HT3_W1_S)
+            (HT3_W2_N, HT3_W2_S)
+            (HT3_W4_N, HT3_W4_S)
+            (HT3_W8_N, HT3_W8_S)
+        };
+        \addplot coordinates {
+            (HT4_W1_N, HT4_W1_S)
+            (HT4_W2_N, HT4_W2_S)
+            (HT4_W4_N, HT4_W4_S)
+            (HT4_W8_N, HT4_W8_S)
+        };
+    \end{axis}
+\end{tikzpicture}

@@ -17,6 +17,7 @@ class CuckooHashTable<T> implements HashTable<T> {
     private final int RANDOM = (int)(Math.random() * Integer.MAX_VALUE);
     private final int MAX_RELOCS;
 
+    @SuppressWarnings("unchecked")
     public CuckooHashTable(int size, int maxRelocs) {
         capacity = size;
         table = (List<Node<T>>[][]) new ArrayList[2][capacity];
@@ -143,6 +144,7 @@ class CuckooHashTable<T> implements HashTable<T> {
         return false;
     }
 
+    @SuppressWarnings("unchecked")
     private void resize() {
         int oldCapacity = capacity;
         for (ReentrantLock aLock : locks[0]) {

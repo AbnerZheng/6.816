@@ -39,9 +39,7 @@ class SerialHashPacket {
     } catch (InterruptedException ignore) {;}      
     timer.stopTimer();
     final long totalCount = workerData.totalPackets;
-    System.out.println("count: " + totalCount);
-    System.out.println("time: " + timer.getElapsedTime());
-    System.out.println(totalCount/timer.getElapsedTime() + " pkts / ms");
+    System.out.println("PKT_PER_MS " + totalCount/timer.getElapsedTime() + " PKT_PER_MS");
   }
 }
 
@@ -56,8 +54,10 @@ class ParallelHashPacket {
     final long mean = Long.parseLong(args[5]);
     final int initSize = Integer.parseInt(args[6]);
     final int numWorkers = Integer.parseInt(args[7]); 
-    final int tableType = Integer.parseInt(args[8]);
+    final String tableType = args[8];
     final int queueDepth = 8;
+    // LockBasedClosedAddressHashTable, LockFreeClosedAddressHashTable, LinearlyProbedOpenAddressHashTable,
+    // CuckooOpenAdressHashTable, AwesomeHashTable, AppSpecificHashTable, -1=None
     // -1=None, 0=Locking, 1=LockFree, 2=LinearProbe, 3=Cuckoo, 4=Awesome, 5=AppSpecific
 
     StopWatch timer = new StopWatch();
@@ -69,12 +69,18 @@ class ParallelHashPacket {
       queues.add(new WaitFreeQueue<HashPacket<Packet>>(queueDepth));
     }
     switch (tableType) {
-      case 0: table = new LockingHashTable<Packet>(initSize, maxBucketSize); break;
-      case 1: table = new LockFreeHashTable<Packet>(initSize, maxBucketSize); break;
-      case 2: table = new LinearProbeHashTable<Packet>(initSize, maxBucketSize); break;
-      case 3: table = new CuckooHashTable<Packet>(initSize, maxBucketSize); break;
-      case 4: table = new AwesomeHashTable<Packet>(initSize, maxBucketSize); break;
-      case 5: table = new AppSpecificHashTable<Packet>(initSize, maxBucketSize); break;
+      case "LockingHashTable":
+        table = new LockingHashTable<Packet>(initSize, maxBucketSize); break;
+      case "LockFreeHashTable":
+        table = new LockFreeHashTable<Packet>(initSize, maxBucketSize); break;
+      case "LinearProbeHashTable":
+        table = new LinearProbeHashTable<Packet>(initSize, maxBucketSize); break;
+      case "CuckooHashTable":
+        table = new CuckooHashTable<Packet>(initSize, maxBucketSize); break;
+      case "AwesomeHashTable":
+        table = new AwesomeHashTable<Packet>(initSize, maxBucketSize); break;
+      case "AppSpecificHashTable":
+        table = new AppSpecificHashTable<Packet>(initSize, maxBucketSize); break;
       default: table = null;
     }
 
@@ -140,8 +146,6 @@ class ParallelHashPacket {
 
     // Report the total number of packets processed and total time
     final long totalCount = dispatchData.totalPackets;
-    System.out.println("count:\t" + totalCount);
-    System.out.println("time:\t" + timer.getElapsedTime());
-    System.out.println("thrpt:\t" + totalCount / timer.getElapsedTime() + " pkts / ms");
+    System.out.println("PKT_PER_MS " + totalCount / timer.getElapsedTime() + " PKT_PER_MS");
   }
 }

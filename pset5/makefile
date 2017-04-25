@@ -5,6 +5,8 @@ JC= javac
 	$(JC) $(JFLAGS) $*.java
 
 CLASSES = \
+	Node.java \
+	WaitFreeQueue.java \
 	PaddedPrimitive.java \
 	StopWatch.java \
 	Fingerprint.java \
@@ -12,6 +14,12 @@ CLASSES = \
 	RandomGenerator.java \
 	BucketList.java \
 	HashTable.java \
+	AppSpecificHashTable.java \
+	AwesomeHashTable.java \
+	CuckooHashTable.java \
+	LinearProbeHashTable.java \
+	LockFreeHashTable.java \
+	LockingHashTable.java \
 	HashPacketGenerator.java \
 	HashPacketWorker.java \
 	HashPacketTest.java \
