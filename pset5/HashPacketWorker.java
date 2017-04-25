@@ -115,32 +115,24 @@ class ParallelHashPacketWorker implements HashPacketWorker {
   }
 
   public void run() {
-    if (table == null) {
-      runParallelNoLoad();
-    } else {
-      runLastQueue();
-    }
+    runLastQueue();
     cleanUp();
   }
 
-  private void runParallelNoLoad() {
-    int id;
+  private void runRandomQueue() {
     Random rand = new Random();
     WaitFreeQueue<HashPacket<Packet>> queue;
     ReentrantLock lock;
-
-    // Choose a random uncontended queue
-    id = pickUncontendedID(rand);
-    queue = queues.get(id);
-    lock = locks.get(id);
     while (!done.value) {
+      // Choose a random queue
+      int id = rand.nextInt(numSources);
+      queue = queues.get(id);
+      lock = locks.get(id);
+
+      // Try to dequeue and process the packet
       HashPacket<Packet> pkt = deq(queue, lock);
-      if (pkt == null) {
-        // Pick another random uncontended queue
-        id = pickUncontendedID(rand);
-        lock = locks.get(id);
-        queue = queues.get(id);
-      }
+      if (pkt != null)
+        processPacket(pkt);
     }
   }
 
@@ -204,6 +196,8 @@ class ParallelHashPacketWorker implements HashPacketWorker {
    * @param table table to do operation on
    */
   private void processPacket(HashPacket<Packet> pkt) {
+    if (table == null) return;
+    residue += fingerprint.getFingerprint(pkt.getItem().iterations,pkt.getItem().seed);
     switch(pkt.getType()) {
       case Add:
         table.add(pkt.mangleKey(),pkt.getItem());
