@@ -1,6 +1,7 @@
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
+import java.lang.Math;
 
 class SerialHashPacket {
   public static void main(String[] args) {
@@ -68,19 +69,20 @@ class ParallelHashPacket {
     for (int i = 0; i < numWorkers; i++) {
       queues.add(new WaitFreeQueue<HashPacket<Packet>>(queueDepth));
     }
+    int logSize = (int) (Math.log(numWorkers) / Math.log(2)) + 1;
     switch (tableType) {
       case "LockingHashTable":
-        table = new LockingHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new LockingHashTable<Packet>(logSize, maxBucketSize); break;
       case "LockFreeHashTable":
-        table = new LockFreeHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new LockFreeHashTable<Packet>(logSize, maxBucketSize); break;
       case "LinearProbeHashTable":
-        table = new LinearProbeHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new LinearProbeHashTable<Packet>(logSize, maxBucketSize); break;
       case "CuckooHashTable":
-        table = new CuckooHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new CuckooHashTable<Packet>(logSize, maxBucketSize); break;
       case "AwesomeHashTable":
-        table = new AwesomeHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new AwesomeHashTable<Packet>(logSize, maxBucketSize); break;
       case "AppSpecificHashTable":
-        table = new AppSpecificHashTable<Packet>(initSize, maxBucketSize); break;
+        table = new AppSpecificHashTable<Packet>(logSize, maxBucketSize); break;
       default: table = null;
     }
 

@@ -17,15 +17,9 @@ import java.lang.Math.*;
 
 class LinearProbeHashTable<T> implements HashTable<T> {
 
-    private List<Node<T>> table;
+    private Node<T>[] table;
     private final ReentrantLock[] locks;
-    private int logSize;
-    private int mask;
     private int maxProbes;
-
-    // Invariants:
-    // mask = 1 << logSize - 1
-    // table.size() = mask + 1
 
     /**
      * @param logSize the starting capacity of the hash table is 2**(logSize)
@@ -33,11 +27,11 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     public LinearProbeHashTable(int logSize, int maxProbes) {
-        this.mask = 1 << logSize - 1;
-        this.table = new ArrayList<Node<T>>(mask + 1);
-        this.locks = new ReentrantLock[mask + 1];
+        int size = 1 << logSize;
+        this.table = (Node<T>[]) new Node[size];
+        this.locks = new ReentrantLock[size];
         this.maxProbes = maxProbes;
-        for (int i = 0; i <= mask; i++) {
+        for (int i = 0; i < size; i++) {
             this.locks[i] = new ReentrantLock();
         }
     }
@@ -49,56 +43,41 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     public void add(int key, T val) {
         // Get the current table capacity
-        int capacity = table.size();
-        int startIndex = key & mask;
+        int capacity = table.length;
+        int startIndex = key & (capacity - 1);
+        int currIndex = startIndex;
 
         // Probe up to maxProbes entries
-        for (int i = 0; i < maxProbes; i++) {
-            int currIndex = (startIndex + i) % table.size();
-            if (table.get(currIndex) == null) {
-                // The entry is empty
-                try {
-                    // Acquire locks
-                    acquire(startIndex, currIndex);
+        for (int k = 0; k < maxProbes; k++) {
+            try {
+                acquire(startIndex, currIndex);
+                // Table was resized, try again
+                if (table.length != capacity)
+                    break;
 
-                    // Release the locks and try again if the table changed
-                    if (table.size() != capacity) break;
-
-                    // If the entry is no longer empty, continue
-                    if (table.get(currIndex) != null) continue;
-
-                    // Otherwise add the value and update k
-                    table.set(currIndex, new Node<T>(key, val));
-                    table.get(startIndex).k = Math.max(table.get(startIndex).k, i);
+                if (table[currIndex] == null) {
+                    // There is no node here
+                    table[currIndex] = new Node<T>(key, val);
+                    table[startIndex].k = Math.max(table[startIndex].k, k);
                     return;
-                } finally {
-                    // Release locks
-                    release(startIndex, currIndex);
-                }
-            } else if (table.get(currIndex).key == key) {
-                // We're updating the existing entry
-                try {
-                    // Acquire locks
-                    acquire(currIndex);
-
-                    // Release the locks and try again if the table changed
-                    if (table.size() != capacity) break;
-
-                    // If the entry is no longer the same key, continue
-                    if (table.get(currIndex).key != key) continue;
-
-                    // Otherwise update the key value pair
-                    table.get(currIndex).val = val;
+                } else if (table[currIndex].deleted) {
+                    // The node here was deleted
+                    table[currIndex] = new Node<T>(key, val, table[currIndex].k);
+                    table[startIndex].k = Math.max(table[startIndex].k, k);
                     return;
-                } finally {
-                    // Release locks
-                    release(currIndex);
+                } else if (table[currIndex].key == key) {
+                    // The node here has the same key
+                    table[currIndex].val = val;
+                    return;
                 }
+            } finally {
+                release(startIndex, currIndex);
             }
+            currIndex = (currIndex + 1) % capacity;
         }
 
         // Resize the table and try again out of probes
-        if (table.size() == capacity) resize();
+        if (table.length == capacity) resize();
         add(key, val);
     }
 
@@ -109,36 +88,41 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     public boolean remove(int key) {
         // Get the current table capacity
-        int capacity = table.size();
-        int startIndex = key & mask;
+        int capacity = table.length;
+        int startIndex = key & (capacity - 1);
 
         // Return false if the first entry does not exist
-        Node<T> firstEntry = table.get(startIndex);
+        Node<T> firstEntry = table[startIndex];
         if (firstEntry == null) {
             return false;
         }
 
         // Probe up to k entries
         for (int i = 0; i <= firstEntry.k; i++) {
-            int currIndex = (startIndex + i) % table.size();
-            if (table.get(currIndex).key == key) {
-                try {
-                    acquire(currIndex);
+            int currIndex = (startIndex + i) % capacity;
+            try {
+                acquire(currIndex);
 
-                    // Check that the value is still there when you remove it
-                    if (table.get(currIndex) != null && table.get(currIndex).key == key) {
-                        table.set(currIndex, null);
-                        return true;
-                    }
-                    break;
-                } finally {
-                    release(currIndex);
+                // The size of the table changed, try again
+                if (table.length != capacity) break;
+
+                // Hopefully delete the key
+                if (table[currIndex] == null) {
+                    return false;
+                } else if (table[currIndex].deleted) {
+                    continue;
+                } else if (table[currIndex].key == key) {
+                    table[currIndex].deleted = true;
+                    return true;
                 }
+            } finally {
+                release(currIndex);
             }
         }
 
-        // The table size has changed or the entry does not exist
-        if (table.size() != capacity) return remove(key);
+        if (table.length != capacity) {
+            return remove(key);
+        }
         return false;
     }
 
@@ -148,19 +132,40 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      * @return true iff the key is in the hash table
      */
     public boolean contains(int key) {
-        int index = key & mask;
-        Node<T> firstEntry = table.get(index);
+        // Get the current table capacity
+        int capacity = table.length;
+        int startIndex = key & (capacity - 1);
 
         // Return false if the first entry does not exist
+        Node<T> firstEntry = table[startIndex];
         if (firstEntry == null) {
             return false;
         }
 
         // Probe up to k entries
-        int k = firstEntry.k;
-        for (int i = index; i <= index + firstEntry.k; i++) {
-            if (table.get(i % table.size()).key == key)
-                return true;
+        for (int i = 0; i <= firstEntry.k; i++) {
+            int currIndex = (startIndex + i) % capacity;
+            try {
+                acquire(currIndex);
+
+                // The size of the table changed, try again
+                if (table.length != capacity) break;
+
+                // Maybe find the key
+                if (table[currIndex] == null) {
+                    return false;
+                } else if (table[currIndex].deleted) {
+                    continue;
+                } else if (table[currIndex].key == key) {
+                    return true;
+                }
+            } finally {
+                release(currIndex);
+            }
+        }
+
+        if (table.length != capacity) {
+            return contains(key);
         }
         return false;
     }
@@ -185,16 +190,17 @@ class LinearProbeHashTable<T> implements HashTable<T> {
         locks[Math.max(lockOne % numLocks, lockTwo % numLocks)].unlock();
     }
 
-    private boolean addNoCheck(List<Node<T>> table, int key, T val) {
-        // Probe up to maxProbes entries
-        int startIndex = key & mask;
-        for (int i = 0; i < table.size(); i++) {
-            int currIndex = (startIndex + i) % table.size();
-            Node<T> entry = table.get(currIndex);
-            if (entry == null) {
-                table.set(currIndex, new Node<T>(key, val));
-                table.get(startIndex).k = Math.max(table.get(startIndex).k, i);
-                return table.get(startIndex).k >= maxProbes;
+    private boolean addNoCheck(Node<T>[] table, int key, T val) {
+        int capacity = table.length;
+        int startIndex = key & (capacity - 1);
+        for (int i = 0; i < capacity; i++) {
+            int currIndex = (startIndex + i) % capacity;
+
+            // When adding without check, can only add to null spaces
+            if (table[currIndex] == null) {
+                table[currIndex] = new Node<T>(key, val);
+                table[startIndex].k = Math.max(table[startIndex].k, i);
+                return table[startIndex].k >= maxProbes;
             }
         }
         return true;
@@ -205,29 +211,32 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     private void resize() {
-        int oldCapacity = table.size();
-
-        // Acquire all write locks in sequential order
-        for (int i = 0; i < locks.length; i++) {
-            locks[i].lock();
-        }
-
-        // Check if someone beat us to it
-        if (oldCapacity != table.size()) return;
-
-        // Resize the table
-        this.mask = 2 * mask + 1;
-        int size = 2 * table.size();
-        List<Node<T>> newTable = new ArrayList<Node<T>>(size);
         boolean needsResize = false;
-        for (int i = 0; i < table.size(); i++) {
-            needsResize = addNoCheck(newTable, table.get(i).key, table.get(i).val) || needsResize;
-        }
-        table = newTable;
+        int oldCapacity = table.length;
 
-        // Release all write locks
-        for (int i = 0; i < locks.length; i++) {
-            locks[i].unlock();
+        try {
+            // Acquire all write locks in sequential order
+            for (int i = 0; i < locks.length; i++) {
+                acquire(i);
+            }
+
+            // Check if someone beat us to it
+            if (oldCapacity != table.length) return;
+
+            // Resize the table
+            int newCapacity = 2 * table.length;
+            Node<T>[] newTable = (Node<T>[]) new Node[newCapacity];
+            for (int i = 0; i < table.length; i++) {
+                if (table[i] == null) continue;
+                if (table[i].deleted) continue;
+                needsResize = addNoCheck(newTable, table[i].key, table[i].val) || needsResize;
+            }
+            table = newTable;
+        } finally {
+            // Release all write locks
+            for (int i = 0; i < locks.length; i++) {
+                release(i);
+            }
         }
 
         // See if the table needs another resizing

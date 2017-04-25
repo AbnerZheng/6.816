@@ -44,13 +44,17 @@ class LockingHashTable<T> implements HashTable<T> {
      * @param val corresponding value
      */
     public void add(int key, T val) {
-        resizeIfNecessary(key);
         try {
             acquire(key, LockType.WRITE);
-            addNoCheck(key, val);
+            int index = key & mask;
+            if (table[index] == null)
+                table[index] = new SerialList<T, Integer>(key, val);
+            else
+                table[index].add(key, val);
         } finally {
             release(key, LockType.WRITE);
         }
+        resizeIfNecessary(key);
     }
 
     /**
@@ -126,7 +130,7 @@ class LockingHashTable<T> implements HashTable<T> {
      * @param key key to check the bucket for
      */
     private void resizeIfNecessary(int key) {
-        while (table[key & mask] != null && table[key & mask].getSize() >= maxBucketSize)
+        while (table[key & mask] != null && table[key & mask].getSize() > maxBucketSize)
             resize();
     }
 
@@ -147,14 +151,14 @@ class LockingHashTable<T> implements HashTable<T> {
             if (oldCapacity != table.length) return;
 
             // Resize the table
-            mask = 2 * mask + 1;
+            int newMask = 2 * mask + 1;
             SerialList<T, Integer>[] newTable = new SerialList[2 * table.length];
             for (int i = 0; i < table.length; i++) {
                 if (table[i] == null)
                     continue;
                 SerialList<T, Integer>.Iterator<T, Integer> iterator = table[i].getHead();
                 while (iterator != null) {
-                    int newIndex = iterator.key & mask;
+                    int newIndex = iterator.key & newMask;
                     if (newTable[newIndex] == null)
                         newTable[newIndex] = new SerialList<T, Integer>(iterator.key, iterator.getItem());
                     else
@@ -163,6 +167,7 @@ class LockingHashTable<T> implements HashTable<T> {
                 }
             }
             table = newTable;
+            mask = newMask;
         } finally {
             // Release all write locks
             for (int i = 0; i < locks.length; i++) {

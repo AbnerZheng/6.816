@@ -125,7 +125,7 @@ class ParallelHashPacketWorker implements HashPacketWorker {
     ReentrantLock lock;
     while (!done.value) {
       // Choose a random queue
-      int id = rand.nextInt(numSources);
+      int id = rand.nextInt(numWorkers);
       queue = queues.get(id);
       lock = locks.get(id);
 
