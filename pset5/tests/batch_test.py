@@ -38,6 +38,7 @@ import os
 import commands
 import re
 import pickle
+import sys
 
 TEX_TEST = False
 
@@ -74,7 +75,7 @@ def run_cmd(cmd):
     outputs.sort()
     return outputs[int(len(outputs) / 2)]
 
-def run_test(T):
+def run_test(T, load_vals=None, rho_vals=None):
     # T = one of 'a', 'b', 'c'
     # this script will generate
     #   test_${T}_results.pypickle - contains the results in a python pickled
@@ -101,12 +102,12 @@ def run_test(T):
 
         n_workers_vals = [1, 2, 4, 8]
 
-        load_vals = [ (0.09, 0.01) , (0.45, 0.05) ]
-        rho_vals = [ 0.5, 0.75, 0.9 ]
+        # load_vals = [ (0.09, 0.01) , (0.45, 0.05) ]
+        # rho_vals = [ 0.5, 0.75, 0.9 ]
 
         h_vals = [ 'LockingHashTable',
                    'LockFreeHashTable',
-                   'LinearProbeHashTable']
+                   'LinearProbeHashTable',
                    'CuckooHashTable',
                    'AwesomeHashTable' ]
 
@@ -216,7 +217,11 @@ def run_test(T):
 ##############################################
 
 if __name__ == '__main__':
-    # run_test('a')
-    run_test('b')
-    # run_test('c')
+    test = sys.argv[1]
+    if test == 'b':
+        load_vals = [(float(sys.argv[2]), float(sys.argv[3]))]
+        rho_vals = [float(sys.argv[4])]
+        run_test(test, load_vals, rho_vals)
+    else:
+        run_test(test)
 
