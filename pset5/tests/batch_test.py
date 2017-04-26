@@ -47,24 +47,32 @@ def run_cmd(cmd):
     if TEX_TEST:
         status = 0
         output = 'PKT_PER_MS ' + str(hash(cmd) % 100) + ' PKT_PER_MS'
-    else:
+        print 'Output from: %s\n%s' % (cmd, output)
+        return hash(cmd) % 100
+    
+    print 'Output from: %s' % cmd
+
+    outputs = []
+    for _ in xrange(5):
         status, output = commands.getstatusoutput(cmd)
 
-    print 'Output from: %s\n%s' % (cmd, output)
+        pkt_per_ms = None
+        if status != 0:
+            print '    Status: %d' % status
+        else:
+            result = re.search('PKT_PER_MS(.*)PKT_PER_MS', output)
+            try:
+                pkt_per_ms_str = result.group(1)
+                pkt_per_ms = float(pkt_per_ms_str)
+            except:
+                print '    Could not convert %s to float' % pkt_per_ms_str
 
-    pkt_per_ms = None
-    if status != 0:
-        print '    Status: %d' % status
-    else:
-        result = re.search('PKT_PER_MS(.*)PKT_PER_MS', output)
-        try:
-            pkt_per_ms_str = result.group(1)
-            pkt_per_ms = float(pkt_per_ms_str)
-        except:
-            print '    Could not convert %s to float' % pkt_per_ms_str
-
+        outputs.append(pkt_per_ms)
+        print pkt_per_ms
     print
-    return pkt_per_ms
+
+    outputs.sort()
+    return outputs[int(len(outputs) / 2)]
 
 def run_test(T):
     # T = one of 'a', 'b', 'c'
@@ -98,9 +106,10 @@ def run_test(T):
 
         h_vals = [ 'LockingHashTable',
                    'LockFreeHashTable',
-                   'LinearProbeHashTable',
+                   'LinearProbeHashTable']
                    'CuckooHashTable',
                    'AwesomeHashTable' ]
+
     elif T == 'c':
         num_milisseconds = 2000
         w = 4000
@@ -207,7 +216,7 @@ def run_test(T):
 ##############################################
 
 if __name__ == '__main__':
-    run_test('a')
-    # run_test('b')
+    # run_test('a')
+    run_test('b')
     # run_test('c')
 
