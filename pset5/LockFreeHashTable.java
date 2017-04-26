@@ -80,8 +80,7 @@ class LockFreeHashTable<T> implements HashTable<T> {
      */
     public boolean contains(int key) {
         SerialList<T, Integer> list = table[key & mask];
-        return true;
-        // return list != null && list.contains(key);
+        return list != null && list.contains(key);
     }
 
     /**
