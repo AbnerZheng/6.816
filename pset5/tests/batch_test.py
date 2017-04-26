@@ -75,7 +75,7 @@ def run_cmd(cmd):
     outputs.sort()
     return outputs[int(len(outputs) / 2)]
 
-def run_test(T, load_vals=None, rho_vals=None):
+def run_test(T, id_num="0", load_vals=None, rho_vals=None):
     # T = one of 'a', 'b', 'c'
     # this script will generate
     #   test_${T}_results.pypickle - contains the results in a python pickled
@@ -211,17 +211,18 @@ def run_test(T, load_vals=None, rho_vals=None):
             all_figs += '\n\n'
 
 
-    with open('test_%s_results.tex' % T, 'w') as f:
+    with open('test_%s%s_results.tex' % (T, id_num), 'w') as f:
         f.write(all_figs)
 
 ##############################################
 
 if __name__ == '__main__':
     test = sys.argv[1]
+    id_num = sys.argv[2]
     if test == 'b':
-        load_vals = [(float(sys.argv[2]), float(sys.argv[3]))]
-        rho_vals = [float(sys.argv[4])]
-        run_test(test, load_vals, rho_vals)
+        load_vals = [(float(sys.argv[3]), float(sys.argv[4]))]
+        rho_vals = [float(sys.argv[5])]
+        run_test(test, id_num, load_vals, rho_vals)
     else:
         run_test(test)
 
