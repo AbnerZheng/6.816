@@ -101,26 +101,56 @@ class AwesomeHashTable<T> implements HashTable<T> {
         // Probe up to k entries
         for (int i = 0; i < maxProbes; i++) {
             currIndex = hash(key, i) % capacity;
-            try {
-                acquire(currIndex);
 
-                // Table was resized, try again
-                if (table != tempTable)
-                    break;
-
-                // Hopefully delete the key
-                if (table[currIndex] == null) {
-                    return false;
-                } else if (table[currIndex].isDeleted()) {
-                    continue;
-                } else if (table[currIndex].key == key) {
-                    table[currIndex].delete();
-                    return true;
+            if (table[currIndex] == null) {
+                try {
+                    acquireRead(currIndex);
+                    if (table == tempTable && table[currIndex] == null)
+                        return false;
+                    else
+                        break;
+                } finally {
+                    releaseRead(currIndex);
                 }
-            } finally {
-                release(currIndex);
+            }
+
+            if (table[currIndex].key == key && !table[currIndex].isDeleted()) {
+                try {
+                    acquire(currIndex);
+                    if (table == tempTable && table[currIndex].key == key && !table[currIndex].isDeleted()) {
+                        table[currIndex].delete();
+                        return true;
+                    } else {
+                        break;
+                    }
+                } finally {
+                    release(currIndex);
+                }
             }
         }
+
+//        for (int i = 0; i < maxProbes; i++) {
+//            currIndex = hash(key, i) % capacity;
+//            try {
+//                acquire(currIndex);
+//
+//                // Table was resized, try again
+//                if (table != tempTable)
+//                    break;
+//
+//                // Hopefully delete the key
+//                if (table[currIndex] == null) {
+//                    return false;
+//                } else if (table[currIndex].isDeleted()) {
+//                    continue;
+//                } else if (table[currIndex].key == key) {
+//                    table[currIndex].delete();
+//                    return true;
+//                }
+//            } finally {
+//                release(currIndex);
+//            }
+//        }
 
         // Try again if the table was resized
         if (table != tempTable) {
@@ -143,25 +173,54 @@ class AwesomeHashTable<T> implements HashTable<T> {
         // Probe up to k entries
         for (int i = 0; i < maxProbes; i++) {
             currIndex = hash(key, i) % capacity;
-            try {
-                acquireRead(currIndex);
 
-                // Table was resized, try again
-                if (table != tempTable)
-                    break;
-
-                // Maybe find the key
-                if (table[currIndex] == null) {
-                    return false;
-                } else if (table[currIndex].isDeleted()) {
-                    continue;
-                } else if (table[currIndex].key == key) {
-                    return true;
+            // The element is not there
+            if (table[currIndex] == null) {
+                try {
+                    acquireRead(currIndex);
+                    if (table == tempTable && table[currIndex] == null)
+                        return false;
+                    else
+                        break;
+                } finally {
+                    releaseRead(currIndex);
                 }
-            } finally {
-                releaseRead(currIndex);
+            }
+
+            if (table[currIndex].key == key && !table[currIndex].isDeleted()) {
+                try {
+                    acquireRead(currIndex);
+                    if (table == tempTable && table[currIndex].key == key && !table[currIndex].isDeleted())
+                        return true;
+                    else
+                        break;
+                } finally {
+                    releaseRead(currIndex);
+                }
             }
         }
+
+//        for (int i = 0; i < maxProbes; i++) {
+//            currIndex = hash(key, i) % capacity;
+//            try {
+//                acquireRead(currIndex);
+//
+//                // Table was resized, try again
+//                if (table != tempTable)
+//                    break;
+//
+//                // Maybe find the key
+//                if (table[currIndex] == null) {
+//                    return false;
+//                } else if (table[currIndex].isDeleted()) {
+//                    continue;
+//                } else if (table[currIndex].key == key) {
+//                    return true;
+//                }
+//            } finally {
+//                releaseRead(currIndex);
+//            }
+//        }
 
         // Try again if the table was resized
         if (table != tempTable) {
