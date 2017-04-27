@@ -1,4 +1,4 @@
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.Math.*;
@@ -13,8 +13,10 @@ import java.util.concurrent.atomic.*;
 class AwesomeHashTable<T> implements HashTable<T> {
 
     private AtomicReference<AtomicNode<T>[]> tableReference;
-    private final ReentrantLock[] locks;
+    private final ReentrantReadWriteLock[] locks;
     private final int maxProbes;
+    private final int c1 = (int)(Math.random() * Integer.MAX_VALUE);
+    private final int c2 = (int)(Math.random() * Integer.MAX_VALUE);
 
     /**
      * @param logSize the starting capacity of the hash table is 2**(logSize)
@@ -24,10 +26,10 @@ class AwesomeHashTable<T> implements HashTable<T> {
     public AwesomeHashTable(int logSize, int maxProbes) {
         int size = 1 << logSize;
         this.tableReference = new AtomicReference((AtomicNode<T>[]) new AtomicNode[size]);
-        this.locks = new ReentrantLock[size];
+        this.locks = new ReentrantReadWriteLock[size];
         this.maxProbes = maxProbes;
         for (int i = 0; i < size; i++) {
-            this.locks[i] = new ReentrantLock();
+            this.locks[i] = new ReentrantReadWriteLock();
         }
     }
 
@@ -40,11 +42,12 @@ class AwesomeHashTable<T> implements HashTable<T> {
         // Get the current table capacity
         AtomicNode<T>[] table = tableReference.get();
         int capacity = table.length;
-        int currIndex = key & (capacity - 1);
+        int currIndex;
 
         // Probe maxProbes entries
         boolean added = false;
         for (int k = 0; k < maxProbes; k++) {
+            currIndex = hash(key, k) % capacity;
             try {
                 acquire(currIndex);
                 // Table was resized, try again
@@ -77,7 +80,6 @@ class AwesomeHashTable<T> implements HashTable<T> {
             } finally {
                 release(currIndex);
             }
-            currIndex = (currIndex + 1) % capacity;
         }
 
         // Resize the table if out of probes and try again
@@ -94,10 +96,11 @@ class AwesomeHashTable<T> implements HashTable<T> {
         // Get the current table capacity
         AtomicNode<T>[] table = tableReference.get();
         int capacity = table.length;
-        int currIndex = key & (capacity - 1);
+        int currIndex;
 
         // Probe up to k entries
         for (int i = 0; i < maxProbes; i++) {
+            currIndex = hash(key, i) % capacity;
             try {
                 acquire(currIndex);
 
@@ -117,7 +120,6 @@ class AwesomeHashTable<T> implements HashTable<T> {
             } finally {
                 release(currIndex);
             }
-            currIndex = (currIndex + 1) % capacity;
         }
 
         // Try again if the table was resized
@@ -136,12 +138,13 @@ class AwesomeHashTable<T> implements HashTable<T> {
         // Get the current table capacity
         AtomicNode<T>[] table = tableReference.get();
         int capacity = table.length;
-        int currIndex = key & (capacity - 1);
+        int currIndex;
 
         // Probe up to k entries
         for (int i = 0; i < maxProbes; i++) {
+            currIndex = hash(key, i) % capacity;
             try {
-                acquire(currIndex);
+                acquireRead(currIndex);
 
                 // Table was resized, try again
                 if (!tableReference.compareAndSet(table, table))
@@ -156,9 +159,8 @@ class AwesomeHashTable<T> implements HashTable<T> {
                     return true;
                 }
             } finally {
-                release(currIndex);
+                releaseRead(currIndex);
             }
-            currIndex = (currIndex + 1) % capacity;
         }
 
         // Try again if the table was resized
@@ -169,18 +171,25 @@ class AwesomeHashTable<T> implements HashTable<T> {
     }
 
     private void acquire(int lock) {
-        locks[lock % locks.length].lock();
+        locks[lock % locks.length].writeLock().lock();
+    }
+
+    private void acquireRead(int lock) {
+        locks[lock % locks.length].readLock().lock();
     }
 
     private void release(int lock) {
-        locks[lock % locks.length].unlock();
+        locks[lock % locks.length].writeLock().unlock();
+    }
+
+    private void releaseRead(int lock) {
+        locks[lock % locks.length].readLock().unlock();
     }
 
     private boolean addNoCheck(AtomicNode<T>[] table, int key, T val) {
         int capacity = table.length;
-        int startIndex = key & (capacity - 1);
         for (int i = 0; i < capacity; i++) {
-            int currIndex = (startIndex + i) % capacity;
+            int currIndex = hash(key, i) % capacity;
 
             // When adding without check, can only add to null spaces
             if (table[currIndex] == null) {
@@ -189,6 +198,10 @@ class AwesomeHashTable<T> implements HashTable<T> {
             }
         }
         return true;
+    }
+
+    private int hash(int key, int i) {
+        return Math.abs(key + c1 * i + c2 * i * i);
     }
 
     /**
