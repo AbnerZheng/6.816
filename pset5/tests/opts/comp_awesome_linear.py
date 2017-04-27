@@ -1,4 +1,4 @@
-import os
+import sys
 import commands
 import re
 
@@ -20,10 +20,11 @@ def run_cmd(cmd):
     return pkt_per_ms
 
 
-def run_test():
+def run_test(h0="AwesomeHashTable", h1="LinearProbeHashTable"):
+    print h0, h1
     max_bucket_size = 4
 
-    num_milisseconds = 2000
+    num_milisseconds = 500
     w = 4000
     init_size = 0
 
@@ -32,6 +33,8 @@ def run_test():
 
     load_vals = [(0.09, 0.01), (0.45, 0.05)]
     rho_vals = [0.5, 0.75, 0.9]
+
+    speedups = []
 
     if max_bucket_size is None:
         print "Set max_bucket_size before running"
@@ -49,14 +52,24 @@ def run_test():
                                                    max_bucket_size,
                                                    w,
                                                    init_size)
-                linear_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, 'LinearProbeHashTable')
-                awesome_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, 'AwesomeHashTable')
-                linear_pkts_per_ms = run_cmd(linear_cmd)
-                awesome_pkts_per_ms = run_cmd(awesome_cmd)
-                print '%d Workers\t %f' % (n_workers, awesome_pkts_per_ms / linear_pkts_per_ms)
+                h0_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, h0)
+                h1_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, h1)
+                # print h0_cmd
+                h0_pkts_per_ms = run_cmd(h0_cmd)
+                h1_pkts_per_ms = run_cmd(h1_cmd)
+                speedup = h1_pkts_per_ms / h0_pkts_per_ms
+                speedups.append(speedup)
+                print '%d Workers\t %f' % (n_workers, speedup)
             print
         print
 
+    print "Average speedup is %f" % (sum(speedups) / len(speedups))
+
 
 if __name__ == '__main__':
-    run_test()
+    if len(sys.argv) == 3:
+        h0 = sys.argv[1]
+        h1 = sys.argv[2]
+        run_test(h0, h1)
+    else:
+        run_test()
