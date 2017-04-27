@@ -94,7 +94,7 @@ class CuckooHashTable<T> implements HashTable<T> {
     }
 
     private int hash1(int key) {
-        return key ^ RANDOM;
+        return String.valueOf(key).hashCode();
     }
 
     /**
