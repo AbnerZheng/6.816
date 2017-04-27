@@ -5,11 +5,10 @@ import java.util.concurrent.locks.ReentrantLock;
 class CuckooHashTable<T> implements HashTable<T> {
 
     private volatile List<Node<T>>[][] table;
-    private ReentrantLock[][] locks;
+    private final ReentrantLock[][] locks;
 
     private final int PROBE_SIZE = 8;
     private final int THRESHOLD = 4;
-    private final int RANDOM = (int)(Math.random() * Integer.MAX_VALUE);
     private final int MAX_RELOCS;
 
     @SuppressWarnings("unchecked")

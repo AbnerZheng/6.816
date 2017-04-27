@@ -2,6 +2,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.Math.*;
+import java.util.concurrent.atomic.*;
 
 /**
  * Linearly Probed Open-Address
@@ -17,7 +18,7 @@ import java.lang.Math.*;
 
 class LinearProbeHashTable<T> implements HashTable<T> {
 
-    private Node<T>[] table;
+    private AtomicReference<Node<T>[]> tableReference;
     private final ReentrantLock[] locks;
     private int maxProbes;
 
@@ -28,7 +29,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
     @SuppressWarnings("unchecked")
     public LinearProbeHashTable(int logSize, int maxProbes) {
         int size = 1 << logSize;
-        this.table = (Node<T>[]) new Node[size];
+        this.tableReference = new AtomicReference((Node<T>[]) new Node[size]);
         this.locks = new ReentrantLock[size];
         this.maxProbes = maxProbes;
         for (int i = 0; i < size; i++) {
@@ -43,6 +44,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     public void add(int key, T val) {
         // Get the current table capacity
+        Node<T>[] table = tableReference.get();
         int capacity = table.length;
         int startIndex = key & (capacity - 1);
         int currIndex = startIndex;
@@ -52,7 +54,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
             try {
                 acquire(startIndex, currIndex);
                 // Table was resized, try again
-                if (table.length != capacity)
+                if (!tableReference.compareAndSet(table, table))
                     break;
 
                 if (table[currIndex] == null) {
@@ -77,7 +79,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
         }
 
         // Resize the table and try again out of probes
-        if (table.length == capacity) resize();
+        if (tableReference.compareAndSet(table, table)) resize();
         add(key, val);
     }
 
@@ -88,6 +90,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     public boolean remove(int key) {
         // Get the current table capacity
+        Node<T>[] table = tableReference.get();
         int capacity = table.length;
         int startIndex = key & (capacity - 1);
 
@@ -104,7 +107,8 @@ class LinearProbeHashTable<T> implements HashTable<T> {
                 acquire(currIndex);
 
                 // The size of the table changed, try again
-                if (table.length != capacity) break;
+                if (!tableReference.compareAndSet(table, table))
+                    break;
 
                 // Hopefully delete the key
                 if (table[currIndex] == null) {
@@ -120,7 +124,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
             }
         }
 
-        if (table.length != capacity) {
+        if (!tableReference.compareAndSet(table, table)) {
             return remove(key);
         }
         return false;
@@ -133,6 +137,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     public boolean contains(int key) {
         // Get the current table capacity
+        Node<T>[] table = tableReference.get();
         int capacity = table.length;
         int startIndex = key & (capacity - 1);
 
@@ -149,7 +154,8 @@ class LinearProbeHashTable<T> implements HashTable<T> {
                 acquire(currIndex);
 
                 // The size of the table changed, try again
-                if (table.length != capacity) break;
+                if (!tableReference.compareAndSet(table, table))
+                    break;
 
                 // Maybe find the key
                 if (table[currIndex] == null) {
@@ -164,7 +170,7 @@ class LinearProbeHashTable<T> implements HashTable<T> {
             }
         }
 
-        if (table.length != capacity) {
+        if (!tableReference.compareAndSet(table, table)) {
             return contains(key);
         }
         return false;
@@ -211,8 +217,8 @@ class LinearProbeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     private void resize() {
+        Node<T>[] table = tableReference.get();
         boolean needsResize = false;
-        int oldCapacity = table.length;
 
         try {
             // Acquire all write locks in sequential order
@@ -221,17 +227,17 @@ class LinearProbeHashTable<T> implements HashTable<T> {
             }
 
             // Check if someone beat us to it
-            if (oldCapacity != table.length) return;
+            if (!tableReference.compareAndSet(table, table))
+                return;
 
             // Resize the table
-            int newCapacity = 2 * table.length;
-            Node<T>[] newTable = (Node<T>[]) new Node[newCapacity];
+            Node<T>[] newTable = (Node<T>[]) new Node[2 * table.length];
             for (int i = 0; i < table.length; i++) {
                 if (table[i] == null) continue;
                 if (table[i].deleted) continue;
                 needsResize = addNoCheck(newTable, table[i].key, table[i].val) || needsResize;
             }
-            table = newTable;
+            tableReference.compareAndSet(table, newTable);
         } finally {
             // Release all write locks
             for (int i = 0; i < locks.length; i++) {

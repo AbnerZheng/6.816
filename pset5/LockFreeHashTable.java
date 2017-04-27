@@ -1,4 +1,5 @@
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Lock-Free Closed-Address Hash Table
@@ -12,14 +13,9 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 class LockFreeHashTable<T> implements HashTable<T> {
 
-    private SerialList<T,Integer>[] table;
+    private AtomicReference<SerialList<T,Integer>[]> tableReference;
     private final ReentrantLock[] locks;
     private final int maxBucketSize;
-    private int mask;
-
-    // Invariants:
-    // mask = 1 << logSize - 1
-    // table.length = mask + 1
 
     /**
      * @param logSize the starting capacity of the hash table is 2**(logSize)
@@ -27,11 +23,11 @@ class LockFreeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     public LockFreeHashTable(int logSize, int maxBucketSize) {
-        this.mask = (1 << logSize) - 1;
+        int capacity = 1 << logSize;
         this.maxBucketSize = maxBucketSize;
-        this.table = new SerialList[mask + 1];
-        this.locks = new ReentrantLock[mask + 1];
-        for (int i = 0; i <= mask; i++) {
+        this.tableReference = new AtomicReference(new SerialList[capacity]);
+        this.locks = new ReentrantLock[capacity];
+        for (int i = 0; i < capacity; i++) {
             this.locks[i] = new ReentrantLock();
         }
     }
@@ -45,7 +41,8 @@ class LockFreeHashTable<T> implements HashTable<T> {
     public void add(int key, T val) {
         try {
             acquire(key);
-            int index = key & mask;
+            SerialList<T, Integer>[] table = tableReference.get();
+            int index = key & (table.length - 1);
             if (table[index] == null)
                 table[index] = new SerialList<T, Integer>(key, val);
             else
@@ -64,8 +61,10 @@ class LockFreeHashTable<T> implements HashTable<T> {
     public boolean remove(int key) {
         try {
             acquire(key);
-            if (table[key & mask] != null)
-                return table[key & mask].remove(key);
+            SerialList<T, Integer>[] table = tableReference.get();
+            int index = key & (table.length - 1);
+            if (table[index] != null)
+                return table[index].remove(key);
             else
                 return false;
         } finally {
@@ -79,7 +78,9 @@ class LockFreeHashTable<T> implements HashTable<T> {
      * @return true iff the key is in the hash table
      */
     public boolean contains(int key) {
-        SerialList<T, Integer> list = table[key & mask];
+        SerialList<T, Integer>[] table = tableReference.get();
+        int index = key & (table.length - 1);
+        SerialList<T, Integer> list = table[index];
         return list != null && list.contains(key);
     }
 
@@ -104,8 +105,8 @@ class LockFreeHashTable<T> implements HashTable<T> {
      * @param key
      * @param x
      */
-    private void addNoCheck(int key, T x) {
-        int index = key & mask;
+    private void addNoCheck(SerialList<T, Integer>[] table, int key, T x) {
+        int index = key & (table.length - 1);
         if (table[index] == null)
             table[index] = new SerialList<T,Integer>(key,x);
         else
@@ -117,8 +118,13 @@ class LockFreeHashTable<T> implements HashTable<T> {
      * @param key key to check the bucket for
      */
     private void resizeIfNecessary(int key) {
-        while (table[key & mask] != null && table[key & mask].getSize() > maxBucketSize)
+        SerialList<T, Integer>[] table = tableReference.get();
+        int index = key & (table.length - 1);
+        while (table[index] != null && table[index].getSize() > maxBucketSize) {
             resize();
+            table = tableReference.get();
+            index = key & (table.length - 1);
+        }
     }
 
     /**
@@ -126,35 +132,33 @@ class LockFreeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     private void resize() {
+        SerialList<T, Integer>[] table = tableReference.get();
         try {
-            int oldCapacity = table.length;
-
             // Acquire all write locks in sequential order
             for (int i = 0; i < locks.length; i++) {
                 acquire(i);
             }
 
             // Check if someone beat us to it
-            if (oldCapacity != table.length) return;
+            if (!tableReference.compareAndSet(table, table))
+                return;
 
             // Resize the table
-            int newMask = 2 * mask + 1;
-            SerialList<T,Integer>[] newTable = new SerialList[2 * table.length];
+            SerialList<T, Integer>[] newTable = new SerialList[2 * table.length];
             for (int i = 0; i < table.length; i++) {
                 if (table[i] == null)
                     continue;
-                SerialList<T,Integer>.Iterator<T,Integer> iterator = table[i].getHead();
+                SerialList<T, Integer>.Iterator<T, Integer> iterator = table[i].getHead();
                 while (iterator != null) {
-                    int newIndex = iterator.key & newMask;
+                    int newIndex = iterator.key & (2 * table.length - 1);
                     if (newTable[newIndex] == null)
-                        newTable[newIndex] = new SerialList<T,Integer>(iterator.key, iterator.getItem());
+                        newTable[newIndex] = new SerialList<T, Integer>(iterator.key, iterator.getItem());
                     else
-                        newTable[newIndex].addNoCheck(iterator.key, iterator.getItem());
+                        addNoCheck(newTable, iterator.key, iterator.getItem());
                     iterator = iterator.getNext();
                 }
             }
-            table = newTable;
-            mask = newMask;
+            tableReference.compareAndSet(table, newTable);
         } finally {
             // Release all write locks
             for (int i = 0; i < locks.length; i++) {
