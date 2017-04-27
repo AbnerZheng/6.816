@@ -42,7 +42,8 @@ class AwesomeHashTable<T> implements HashTable<T> {
         int capacity = table.length;
         int currIndex = key & (capacity - 1);
 
-        // Probe up to maxProbes entries
+        // Probe maxProbes entries
+        boolean added = false;
         for (int k = 0; k < maxProbes; k++) {
             try {
                 acquire(currIndex);
@@ -51,14 +52,27 @@ class AwesomeHashTable<T> implements HashTable<T> {
                     break;
 
                 AtomicNode<T> currNode = table[currIndex];
-                if (currNode == null || currNode.deleted) {
-                    // There is no node here or the node was deleted
-                    table[currIndex] = new AtomicNode<T>(key, val);
-                    return;
-                } else if (currNode.key == key) {
-                    // The node here has the same key
-                    currNode.val = val;
-                    return;
+
+                if (added) {
+                    // Delete other references to the key
+                    if (currNode == null) {
+                        return;
+                    } else if (currNode.key == key) {
+                        currNode.deleted = true;
+                        return;
+                    }
+                } else {
+                    // Try to add the key
+                    if (currNode == null) {
+                        table[currIndex] = new AtomicNode<T>(key, val);
+                        return;
+                    } else if (currNode.deleted) {
+                        table[currIndex] = new AtomicNode<T>(key, val);
+                        added = true;
+                    } else if (currNode.key == key) {
+                        table[currIndex] = new AtomicNode<T>(key, val);
+                        return;
+                    }
                 }
             } finally {
                 release(currIndex);

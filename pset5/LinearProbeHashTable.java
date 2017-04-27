@@ -50,28 +50,50 @@ class LinearProbeHashTable<T> implements HashTable<T> {
         int currIndex = startIndex;
 
         // Probe up to maxProbes entries
+        boolean added = false;
         for (int k = 0; k < maxProbes; k++) {
             try {
                 acquire(startIndex, currIndex);
+
                 // Table was resized, try again
                 if (!tableReference.compareAndSet(table, table))
                     break;
 
-                if (table[currIndex] == null) {
-                    // There is no node here
-                    table[currIndex] = new Node<T>(key, val);
-                    table[startIndex].k = Math.max(table[startIndex].k, k);
-                    return;
-                } else if (table[currIndex].deleted) {
-                    // The node here was deleted
-                    table[currIndex] = new Node<T>(key, val, table[currIndex].k);
-                    table[startIndex].k = Math.max(table[startIndex].k, k);
-                    return;
-                } else if (table[currIndex].key == key) {
-                    // The node here has the same key
-                    table[currIndex].val = val;
-                    return;
+                Node<T> currNode = table[currIndex];
+
+                if (added) {
+                    // Delete other references to the key
+                    if (currNode == null) {
+                        return;
+                    } else if (currNode.key == key) {
+                        currNode.deleted = true;
+                        return;
+                    }
+                } else {
+                    // Try to add the key
+                    if (currNode == null) {
+                        // There is no node here
+                        table[currIndex] = new Node<T>(key, val);
+                        table[startIndex].k = Math.max(table[startIndex].k, k);
+                        return;
+                    } else if (currNode.deleted) {
+                        // The node here was deleted
+                        table[currIndex] = new Node<T>(key, val, table[currIndex].k);
+                        table[startIndex].k = Math.max(table[startIndex].k, k);
+                        added = true;
+                    } else if (currNode.key == key) {
+                        // The node here has the same key
+                        currNode.val = val;
+                        return;
+                    }
                 }
+
+
+                // Table was resized, try again
+                if (!tableReference.compareAndSet(table, table))
+                    break;
+
+
             } finally {
                 release(startIndex, currIndex);
             }

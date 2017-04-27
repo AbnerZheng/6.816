@@ -93,7 +93,7 @@ class CuckooHashTable<T> implements HashTable<T> {
     }
 
     private int hash1(int key) {
-        return String.valueOf(key).hashCode();
+        return Math.abs(String.valueOf(key).hashCode());
     }
 
     /**
