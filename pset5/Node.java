@@ -35,6 +35,31 @@ class Node<T> {
     }
 }
 
+class AtomicNode<T> {
+    public final int key;
+    public T val;
+    public boolean deleted;
+
+    public AtomicNode(int key, T val) {
+        this.key = key;
+        this.val = val;
+        this.deleted = false;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public boolean equals(Object obj) {
+        if (obj instanceof Integer) {
+            return !deleted && ((int)obj == this.key);
+        }
+        if (!(obj instanceof Node)) {
+            return false;
+        }
+        Node<T> node = (Node<T>) obj;
+        return !deleted && (this.key == node.key);
+    }
+}
+
 class NodeTest {
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
