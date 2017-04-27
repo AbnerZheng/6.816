@@ -7,8 +7,8 @@ class CuckooHashTable<T> implements HashTable<T> {
     private volatile List<Node<T>>[][] table;
     private ReentrantLock[][] locks;
 
-    private final int PROBE_SIZE = 4;
-    private final int THRESHOLD = 2;
+    private final int PROBE_SIZE = 8;
+    private final int THRESHOLD = 4;
     private final int RANDOM = (int)(Math.random() * Integer.MAX_VALUE);
     private final int MAX_RELOCS;
 
@@ -127,6 +127,7 @@ class CuckooHashTable<T> implements HashTable<T> {
             // Find the oldest element in the given set
             int mask = table[0].length - 1;
             List<Node<T>> iSet = table[i][hi];
+            if (iSet.size() == 0) return true;
             Node<T> y = iSet.get(0);
             switch (i) {
             case 0: hj = hash1(y.key) & mask; break;

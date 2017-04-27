@@ -57,6 +57,14 @@ class ParallelHashPacket {
     final int numWorkers = Integer.parseInt(args[7]); 
     final String tableType = args[8];
     final int queueDepth = 8;
+    final int logSize;
+
+    if (args.length > 9) {
+      logSize = (int)Math.ceil(Math.log(Float.parseFloat(args[9]) * numWorkers) / Math.log(2));
+    } else {
+      logSize = (int)Math.ceil(Math.log(4 * numWorkers) / Math.log(2));
+    }
+
     // LockBasedClosedAddressHashTable, LockFreeClosedAddressHashTable, LinearlyProbedOpenAddressHashTable,
     // CuckooOpenAdressHashTable, AwesomeHashTable, AppSpecificHashTable, -1=None
     // -1=None, 0=Locking, 1=LockFree, 2=LinearProbe, 3=Cuckoo, 4=Awesome, 5=AppSpecific
@@ -69,7 +77,6 @@ class ParallelHashPacket {
     for (int i = 0; i < numWorkers; i++) {
       queues.add(new WaitFreeQueue<HashPacket<Packet>>(queueDepth));
     }
-    int logSize = (int) (Math.log(numWorkers) / Math.log(2)) + 1;
     switch (tableType) {
       case "LockingHashTable":
         table = new LockingHashTable<Packet>(logSize, maxBucketSize); break;
