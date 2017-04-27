@@ -3,4 +3,9 @@
 *.class
 *.stderr
 *.stdout
+*.tex
+*.pypickle
+*.zip
+*.xlsx
+*.txt
 
