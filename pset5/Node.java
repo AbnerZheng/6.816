@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class Node<T> {
     public final int key;
@@ -37,26 +38,34 @@ class Node<T> {
 
 class AtomicNode<T> {
     public final int key;
-    public T val;
-    public boolean deleted;
+    public final T val;
+    private AtomicBoolean deleted;
 
     public AtomicNode(int key, T val) {
         this.key = key;
         this.val = val;
-        this.deleted = false;
+        this.deleted = new AtomicBoolean(false);
+    }
+
+    public boolean isDeleted() {
+        return deleted.get();
+    }
+
+    public boolean delete() {
+        return deleted.compareAndSet(false, true);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public boolean equals(Object obj) {
         if (obj instanceof Integer) {
-            return !deleted && ((int)obj == this.key);
+            return !isDeleted() && ((int)obj == this.key);
         }
         if (!(obj instanceof Node)) {
             return false;
         }
         Node<T> node = (Node<T>) obj;
-        return !deleted && (this.key == node.key);
+        return !isDeleted() && (this.key == node.key);
     }
 }
 

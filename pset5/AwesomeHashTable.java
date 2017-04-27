@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.*;
 
 class AwesomeHashTable<T> implements HashTable<T> {
 
-    private AtomicReference<AtomicNode<T>[]> tableReference;
+    private volatile AtomicNode<T>[] table;
     private final ReentrantReadWriteLock[] locks;
     private final int maxProbes;
     private final int c1 = (int)(Math.random() * Integer.MAX_VALUE);
@@ -25,7 +25,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
     @SuppressWarnings("unchecked")
     public AwesomeHashTable(int logSize, int maxProbes) {
         int size = 1 << logSize;
-        this.tableReference = new AtomicReference((AtomicNode<T>[]) new AtomicNode[size]);
+        this.table = (AtomicNode<T>[]) new AtomicNode[size];
         this.locks = new ReentrantReadWriteLock[size];
         this.maxProbes = maxProbes;
         for (int i = 0; i < size; i++) {
@@ -40,8 +40,8 @@ class AwesomeHashTable<T> implements HashTable<T> {
      */
     public void add(int key, T val) {
         // Get the current table capacity
-        AtomicNode<T>[] table = tableReference.get();
-        int capacity = table.length;
+        AtomicNode<T>[] tempTable = table;
+        int capacity = tempTable.length;
         int currIndex;
 
         // Probe maxProbes entries
@@ -51,7 +51,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
             try {
                 acquire(currIndex);
                 // Table was resized, try again
-                if (!tableReference.compareAndSet(table, table))
+                if (table != tempTable)
                     break;
 
                 AtomicNode<T> currNode = table[currIndex];
@@ -61,7 +61,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
                     if (currNode == null) {
                         return;
                     } else if (currNode.key == key) {
-                        currNode.deleted = true;
+                        currNode.delete();
                         return;
                     }
                 } else {
@@ -69,7 +69,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
                     if (currNode == null) {
                         table[currIndex] = new AtomicNode<T>(key, val);
                         return;
-                    } else if (currNode.deleted) {
+                    } else if (currNode.isDeleted()) {
                         table[currIndex] = new AtomicNode<T>(key, val);
                         added = true;
                     } else if (currNode.key == key) {
@@ -83,7 +83,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
         }
 
         // Resize the table if out of probes and try again
-        if (tableReference.compareAndSet(table, table)) resize();
+        if (table == tempTable) resize();
         add(key, val);
     }
 
@@ -94,8 +94,8 @@ class AwesomeHashTable<T> implements HashTable<T> {
      */
     public boolean remove(int key) {
         // Get the current table capacity
-        AtomicNode<T>[] table = tableReference.get();
-        int capacity = table.length;
+        AtomicNode<T>[] tempTable = table;
+        int capacity = tempTable.length;
         int currIndex;
 
         // Probe up to k entries
@@ -105,16 +105,16 @@ class AwesomeHashTable<T> implements HashTable<T> {
                 acquire(currIndex);
 
                 // Table was resized, try again
-                if (!tableReference.compareAndSet(table, table))
+                if (table != tempTable)
                     break;
 
                 // Hopefully delete the key
                 if (table[currIndex] == null) {
                     return false;
-                } else if (table[currIndex].deleted) {
+                } else if (table[currIndex].isDeleted()) {
                     continue;
                 } else if (table[currIndex].key == key) {
-                    table[currIndex].deleted = true;
+                    table[currIndex].delete();
                     return true;
                 }
             } finally {
@@ -123,7 +123,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
         }
 
         // Try again if the table was resized
-        if (!tableReference.compareAndSet(table, table)) {
+        if (table != tempTable) {
             return remove(key);
         }
         return false;
@@ -136,8 +136,8 @@ class AwesomeHashTable<T> implements HashTable<T> {
      */
     public boolean contains(int key) {
         // Get the current table capacity
-        AtomicNode<T>[] table = tableReference.get();
-        int capacity = table.length;
+        AtomicNode<T>[] tempTable = table;
+        int capacity = tempTable.length;
         int currIndex;
 
         // Probe up to k entries
@@ -147,13 +147,13 @@ class AwesomeHashTable<T> implements HashTable<T> {
                 acquireRead(currIndex);
 
                 // Table was resized, try again
-                if (!tableReference.compareAndSet(table, table))
+                if (table != tempTable)
                     break;
 
                 // Maybe find the key
                 if (table[currIndex] == null) {
                     return false;
-                } else if (table[currIndex].deleted) {
+                } else if (table[currIndex].isDeleted()) {
                     continue;
                 } else if (table[currIndex].key == key) {
                     return true;
@@ -164,7 +164,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
         }
 
         // Try again if the table was resized
-        if (!tableReference.compareAndSet(table, table)) {
+        if (table != tempTable) {
             return contains(key);
         }
         return false;
@@ -209,7 +209,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
      */
     @SuppressWarnings("unchecked")
     private void resize() {
-        AtomicNode<T>[] table = tableReference.get();
+        AtomicNode<T>[] tempTable = table;
         boolean needsResize = false;
 
         try {
@@ -219,7 +219,7 @@ class AwesomeHashTable<T> implements HashTable<T> {
             }
 
             // Check if someone beat us to it
-            if (!tableReference.compareAndSet(table, table))
+            if (table != tempTable)
                 return;
 
             // Resize the table
@@ -227,10 +227,10 @@ class AwesomeHashTable<T> implements HashTable<T> {
             AtomicNode<T>[] newTable = (AtomicNode<T>[]) new AtomicNode[newCapacity];
             for (int i = 0; i < table.length; i++) {
                 if (table[i] == null) continue;
-                if (table[i].deleted) continue;
+                if (table[i].isDeleted()) continue;
                 needsResize = addNoCheck(newTable, table[i].key, table[i].val) || needsResize;
             }
-            tableReference.compareAndSet(table, newTable);
+            table = newTable;
         } finally {
             // Release all write locks
             for (int i = 0; i < locks.length; i++) {
