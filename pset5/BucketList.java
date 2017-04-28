@@ -1,4 +1,5 @@
-
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 
 public interface BucketList<T,K> {
   public boolean contains(K key);
@@ -11,6 +12,130 @@ public interface BucketList<T,K> {
   }
 }
 
+class LockFreeList<T> {
+
+  private static final int HI_MASK = 0x00800000;
+  private static final int MASK = 0x00FFFFFF;
+  AtomicNode<T> head;
+
+  public LockFreeList() {
+    this.head = new AtomicNode<T>(Integer.MIN_VALUE, null);  // head sentinel
+    this.head.next.set(new AtomicNode<T>(Integer.MAX_VALUE, null), false);
+  }
+
+  public LockFreeList(AtomicNode<T> head) {
+    this.head = head;
+  }
+
+  class Window<T> {
+    public AtomicNode<T> pred, curr;
+    public Window(AtomicNode<T> pred, AtomicNode<T> curr) {
+      this.pred = pred;
+      this.curr = curr;
+    }
+  }
+
+  public Window<T> find(AtomicNode<T> head, int key) {
+    AtomicNode<T> pred = null, curr = null, succ = null;
+    boolean[] marked = {false};
+    boolean snip;
+    retry: while (true) {
+      pred = head;
+      curr = pred.next.getReference();
+      while (true) {
+        succ = curr.next.get(marked);
+        while (marked[0]) {
+          snip = pred.next.compareAndSet(curr, succ, false, false);
+          if (!snip) continue retry;
+          curr = succ;
+          succ = curr.next.get(marked);
+        }
+        if (curr.key >= key)
+          return new Window(pred, curr);
+        pred = curr;
+        curr = succ;
+      }
+    }
+  }
+
+  public boolean add(int index, T item) {
+    int key = makeOrdinaryKey(index);
+    while (true) {
+      Window<T> window = find(head, key);
+      AtomicNode<T> pred = window.pred, curr = window.curr;
+      if (curr.key == key) {
+        return false;
+      } else {
+        AtomicNode<T> node = new AtomicNode<T>(key, item);
+        node.next.set(curr, false);
+        if (pred.next.compareAndSet(curr, node, false, false)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  public boolean remove(int index) {
+    boolean snip;
+    int key = makeOrdinaryKey(index);
+    while (true) {
+      Window<T> window = find(head, key);
+      AtomicNode<T> pred = window.pred, curr = window.curr;
+      if (curr.key != key) {
+        return false;
+      } else {
+        AtomicNode<T> succ = curr.next.getReference();
+        snip = curr.next.attemptMark(succ, true);
+        if (!snip)
+          continue;
+        pred.next.compareAndSet(curr, succ, false, false);
+        return true;
+      }
+    }
+  }
+
+  public boolean contains(int index) {
+    int key = makeOrdinaryKey(index);
+    Window<T> window = find(head, key);
+    AtomicNode<T> pred = window.pred;
+    AtomicNode<T> curr = window.curr;
+    return curr.key == key;
+  }
+
+  /**
+   * Inserts a sentinel node for the given index, if it does not already exist,
+   * and returns the corresponding lock-free list.
+   * @param index the sentinel index
+   * @return the lock-free list starting at the sentinel node of the given index
+   */
+  public LockFreeList<T> getSentinel(int index) {
+    int key = makeSentinelKey(index);
+    boolean splice;
+    while (true) {
+      Window<T> window = find(head, key);
+      AtomicNode<T> pred = window.pred;
+      AtomicNode<T> curr = window.curr;
+      if (curr.key == key) {
+        return new LockFreeList<T>(curr);
+      } else {
+        AtomicNode<T> node = new AtomicNode<T>(key, null);
+        node.next.set(pred.next.getReference(), false);
+        splice = pred.next.compareAndSet(curr, node, false, false);
+        if (splice)
+          return new LockFreeList<T>(node);
+      }
+    }
+  }
+
+  public static int makeOrdinaryKey(int key) {
+    int code = key & MASK; // take 3 lowest bytes
+    return Integer.reverse(code | HI_MASK);
+  }
+
+  public static int makeSentinelKey(int sentinelKey) {
+    return Integer.reverse(sentinelKey & MASK);
+  }
+}
 
 class SerialList<T,K> implements BucketList<T,K> {
   int size = 0;

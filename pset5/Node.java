@@ -1,6 +1,7 @@
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 
 class Node<T> {
     public final int key;
@@ -39,33 +40,22 @@ class Node<T> {
 class AtomicNode<T> {
     public final int key;
     public final T val;
-    private AtomicBoolean deleted;
+    public final AtomicMarkableReference<AtomicNode<T>> next;
 
     public AtomicNode(int key, T val) {
         this.key = key;
         this.val = val;
-        this.deleted = new AtomicBoolean(false);
-    }
-
-    public boolean isDeleted() {
-        return deleted.get();
-    }
-
-    public boolean delete() {
-        return deleted.compareAndSet(false, true);
+        this.next = new AtomicMarkableReference<AtomicNode<T>>(null, false);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public boolean equals(Object obj) {
-        if (obj instanceof Integer) {
-            return !isDeleted() && ((int)obj == this.key);
-        }
-        if (!(obj instanceof Node)) {
+        if (!(obj instanceof AtomicNode)) {
             return false;
         }
-        Node<T> node = (Node<T>) obj;
-        return !isDeleted() && (this.key == node.key);
+        AtomicNode<T> node = (AtomicNode<T>) obj;
+        return !next.isMarked() && (this.key == node.key);
     }
 }
 

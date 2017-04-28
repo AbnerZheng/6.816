@@ -1,4 +1,4 @@
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.Math.*;
@@ -7,297 +7,95 @@ import java.util.concurrent.atomic.*;
 /**
  * Awesome Hash Table
  *
- * The awesome hash table is an extension of the linear probe hash table.
+ * The awesome hash table is a lock-free hash table.
  */
 
 class AwesomeHashTable<T> implements HashTable<T> {
 
-    private volatile AtomicNode<T>[] table;
-    private final ReentrantReadWriteLock[] locks;
-    private final int maxProbes;
-    private final int c1 = (int)(Math.random() * Integer.MAX_VALUE);
-    private final int c2 = (int)(Math.random() * Integer.MAX_VALUE);
+    LockFreeList<T>[] bucket;
+    AtomicInteger bucketSize;
+    AtomicInteger setSize;
 
-    /**
-     * @param logSize the starting capacity of the hash table is 2**(logSize)
-     * @param maxProbes the maximum number of probes for a slot before resizing
-     */
+    // When the average bucket load crosses this threshold, we double the table capacity
+    private final float THRESHOLD = 4;
+    private final int PROBABILITY = 30;
+
     @SuppressWarnings("unchecked")
     public AwesomeHashTable(int logSize, int maxProbes) {
-        int size = 1 << logSize;
-        this.table = (AtomicNode<T>[]) new AtomicNode[size];
-        this.locks = new ReentrantReadWriteLock[size];
-        this.maxProbes = maxProbes;
-        for (int i = 0; i < size; i++) {
-            this.locks[i] = new ReentrantReadWriteLock();
-        }
+        bucket = (LockFreeList<T>[]) new LockFreeList[1 << (logSize + 20)];
+        bucket[0] = new LockFreeList<T>();
+        bucketSize = new AtomicInteger(1 << logSize);
+        setSize = new AtomicInteger(0);
     }
 
-    /**
-     * Adds the key value pair to the hash table.
-     * @param key key to be added
-     * @param val corresponding value
-     */
     public void add(int key, T val) {
-        // Get the current table capacity
-        AtomicNode<T>[] tempTable = table;
-        int capacity = tempTable.length;
-        int currIndex;
-
-        // Probe maxProbes entries
-        boolean added = false;
-        for (int k = 0; k < maxProbes; k++) {
-            currIndex = hash(key, k) % capacity;
-            try {
-                acquire(currIndex);
-                // Table was resized, try again
-                if (table != tempTable)
-                    break;
-
-                AtomicNode<T> currNode = table[currIndex];
-
-                if (added) {
-                    // Delete other references to the key
-                    if (currNode == null) {
-                        return;
-                    } else if (currNode.key == key) {
-                        currNode.delete();
-                        return;
-                    }
-                } else {
-                    // Try to add the key
-                    if (currNode == null) {
-                        table[currIndex] = new AtomicNode<T>(key, val);
-                        return;
-                    } else if (currNode.isDeleted()) {
-                        table[currIndex] = new AtomicNode<T>(key, val);
-                        added = true;
-                    } else if (currNode.key == key) {
-                        table[currIndex] = new AtomicNode<T>(key, val);
-                        return;
-                    }
-                }
-            } finally {
-                release(currIndex);
-            }
-        }
-
-        // Resize the table if out of probes and try again
-        if (table == tempTable) resize();
-        add(key, val);
+        int myBucket = key % bucketSize.get();
+        LockFreeList<T> b = getLockFreeList(myBucket);
+        if (!b.add(key, val)) return;  // The key is already there
+        int setSizeNow = setSize.getAndIncrement();
+//        if ((int)(Math.random() * PROBABILITY) == 0) {
+//            int setSizeNow = setSize.getAndAdd(PROBABILITY);
+            int bucketSizeNow = bucketSize.get();
+            if (setSizeNow / bucketSizeNow > THRESHOLD)
+                bucketSize.compareAndSet(bucketSizeNow, 2 * bucketSizeNow);
+//        }
     }
 
-    /**
-     * Removes the key from the hash table.
-     * @param key key to be removed
-     * @return true iff the key was successfully removed
-     */
     public boolean remove(int key) {
-        // Get the current table capacity
-        AtomicNode<T>[] tempTable = table;
-        int capacity = tempTable.length;
-        int currIndex;
-
-        // Probe up to k entries
-        for (int i = 0; i < maxProbes; i++) {
-            currIndex = hash(key, i) % capacity;
-
-            if (table[currIndex] == null) {
-                try {
-                    acquireRead(currIndex);
-                    if (table == tempTable && table[currIndex] == null)
-                        return false;
-                    else
-                        break;
-                } finally {
-                    releaseRead(currIndex);
-                }
-            }
-
-            if (table[currIndex].key == key && !table[currIndex].isDeleted()) {
-                try {
-                    acquire(currIndex);
-                    if (table == tempTable && table[currIndex].key == key && !table[currIndex].isDeleted()) {
-                        table[currIndex].delete();
-                        return true;
-                    } else {
-                        break;
-                    }
-                } finally {
-                    release(currIndex);
-                }
-            }
-        }
-
-//        for (int i = 0; i < maxProbes; i++) {
-//            currIndex = hash(key, i) % capacity;
-//            try {
-//                acquire(currIndex);
-//
-//                // Table was resized, try again
-//                if (table != tempTable)
-//                    break;
-//
-//                // Hopefully delete the key
-//                if (table[currIndex] == null) {
-//                    return false;
-//                } else if (table[currIndex].isDeleted()) {
-//                    continue;
-//                } else if (table[currIndex].key == key) {
-//                    table[currIndex].delete();
-//                    return true;
-//                }
-//            } finally {
-//                release(currIndex);
-//            }
-//        }
-
-        // Try again if the table was resized
-        if (table != tempTable) {
-            return remove(key);
-        }
-        return false;
+        int myBucket = key % bucketSize.get();
+        LockFreeList<T> b = getLockFreeList(myBucket);
+        setSize.getAndDecrement();
+        return b.remove(key);
     }
 
-    /**
-     * Returns whether the key is in the hash table.
-     * @param key key to check for
-     * @return true iff the key is in the hash table
-     */
     public boolean contains(int key) {
-        // Get the current table capacity
-        AtomicNode<T>[] tempTable = table;
-        int capacity = tempTable.length;
-        int currIndex;
+        int myBucket = key % bucketSize.get();
+        LockFreeList<T> b = getLockFreeList(myBucket);
+        return b.contains(key);
+    }
 
-        // Probe up to k entries
-        for (int i = 0; i < maxProbes; i++) {
-            currIndex = hash(key, i) % capacity;
+    private LockFreeList<T> getLockFreeList(int myBucket) {
+        if (bucket[myBucket] == null)
+            initializeBucket(myBucket);
+        return bucket[myBucket];
+    }
 
-            // The element is not there
-            if (table[currIndex] == null) {
-                try {
-                    acquireRead(currIndex);
-                    if (table == tempTable && table[currIndex] == null)
-                        return false;
-                    else
-                        break;
-                } finally {
-                    releaseRead(currIndex);
-                }
-            }
+    private void initializeBucket(int myBucket) {
+        int parent = getParent(myBucket);
+        if (bucket[parent] == null)
+            initializeBucket(parent);
+        bucket[myBucket] = bucket[parent].getSentinel(myBucket);
+    }
 
-            if (table[currIndex].key == key && !table[currIndex].isDeleted()) {
-                try {
-                    acquireRead(currIndex);
-                    if (table == tempTable && table[currIndex].key == key && !table[currIndex].isDeleted())
-                        return true;
-                    else
-                        break;
-                } finally {
-                    releaseRead(currIndex);
-                }
-            }
+    private int getParent(int myBucket) {
+        int parent = bucketSize.get();
+        do {
+            parent = parent >> 1;
+        } while (parent > myBucket);
+        parent = myBucket - parent;
+        return parent;
+    }
+}
+
+class AwesomeHashTableTest {
+    public static void main(String[] args) {
+        AwesomeHashTable<Integer> table = new AwesomeHashTable<Integer>(2, 4);
+        int trues, falses;
+        for (int i = 0; i < 512; i++) {
+            table.add(i, i);
         }
 
-//        for (int i = 0; i < maxProbes; i++) {
-//            currIndex = hash(key, i) % capacity;
-//            try {
-//                acquireRead(currIndex);
-//
-//                // Table was resized, try again
-//                if (table != tempTable)
-//                    break;
-//
-//                // Maybe find the key
-//                if (table[currIndex] == null) {
-//                    return false;
-//                } else if (table[currIndex].isDeleted()) {
-//                    continue;
-//                } else if (table[currIndex].key == key) {
-//                    return true;
-//                }
-//            } finally {
-//                releaseRead(currIndex);
-//            }
-//        }
-
-        // Try again if the table was resized
-        if (table != tempTable) {
-            return contains(key);
+        for (int i = 0; i < 512; i+=2) {
+            table.remove(i);
         }
-        return false;
-    }
-
-    private void acquire(int lock) {
-        locks[lock % locks.length].writeLock().lock();
-    }
-
-    private void acquireRead(int lock) {
-        locks[lock % locks.length].readLock().lock();
-    }
-
-    private void release(int lock) {
-        locks[lock % locks.length].writeLock().unlock();
-    }
-
-    private void releaseRead(int lock) {
-        locks[lock % locks.length].readLock().unlock();
-    }
-
-    private boolean addNoCheck(AtomicNode<T>[] table, int key, T val) {
-        int capacity = table.length;
-        for (int i = 0; i < capacity; i++) {
-            int currIndex = hash(key, i) % capacity;
-
-            // When adding without check, can only add to null spaces
-            if (table[currIndex] == null) {
-                table[currIndex] = new AtomicNode<T>(key, val);
-                return i >= maxProbes;
-            }
+        trues = 0; falses = 0;
+        for (int i = 0; i < 512; i+=3) {
+            if (table.contains(i))
+                trues++;
+            else
+                falses++;
         }
-        return true;
-    }
-
-    private int hash(int key, int i) {
-        return Math.abs(key + c1 * i + c2 * i * i);
-    }
-
-    /**
-     * Doubles the size of the hash table and reassigns all key value pairs.
-     */
-    @SuppressWarnings("unchecked")
-    private void resize() {
-        AtomicNode<T>[] tempTable = table;
-        boolean needsResize = false;
-
-        try {
-            // Acquire all write locks in sequential order
-            for (int i = 0; i < locks.length; i++) {
-                acquire(i);
-            }
-
-            // Check if someone beat us to it
-            if (table != tempTable)
-                return;
-
-            // Resize the table
-            int newCapacity = 2 * table.length;
-            AtomicNode<T>[] newTable = (AtomicNode<T>[]) new AtomicNode[newCapacity];
-            for (int i = 0; i < table.length; i++) {
-                if (table[i] == null) continue;
-                if (table[i].isDeleted()) continue;
-                needsResize = addNoCheck(newTable, table[i].key, table[i].val) || needsResize;
-            }
-            table = newTable;
-        } finally {
-            // Release all write locks
-            for (int i = 0; i < locks.length; i++) {
-                release(i);
-            }
-        }
-
-        // See if the table needs another resizing
-        if (needsResize) resize();
+        System.out.println(trues);
+        System.out.println(falses);
     }
 }

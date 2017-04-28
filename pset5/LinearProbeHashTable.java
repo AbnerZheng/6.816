@@ -87,13 +87,6 @@ class LinearProbeHashTable<T> implements HashTable<T> {
                         return;
                     }
                 }
-
-
-                // Table was resized, try again
-                if (!tableReference.compareAndSet(table, table))
-                    break;
-
-
             } finally {
                 release(startIndex, currIndex);
             }
