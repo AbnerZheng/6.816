@@ -15,7 +15,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
 
     private AtomicReference<SerialList<T,Integer>[]> tableReference;
     private final ReentrantLock[] locks;
-    private final int maxBucketSize;
+    private final int maxBucketSize = 8;
 
     /**
      * @param logSize the starting capacity of the hash table is 2**(logSize)
@@ -24,7 +24,6 @@ class AppSpecificHashTable<T> implements HashTable<T> {
     @SuppressWarnings("unchecked")
     public AppSpecificHashTable(int logSize, int maxBucketSize) {
         int capacity = 1 << logSize;
-        this.maxBucketSize = maxBucketSize;
         this.tableReference = new AtomicReference(new SerialList[capacity]);
         this.locks = new ReentrantLock[capacity];
         for (int i = 0; i < capacity; i++) {
