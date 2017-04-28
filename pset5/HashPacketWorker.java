@@ -115,8 +115,21 @@ class ParallelHashPacketWorker implements HashPacketWorker {
   }
 
   public void run() {
-    runLastQueue();
+    runLockFree();
     cleanUp();
+  }
+
+  private void runLockFree() {
+    WaitFreeQueue<HashPacket<Packet>> queue = queues.get(threadID);
+    while (!done.value) {
+      try {
+        HashPacket<Packet> pkt = queue.deq();
+        if (pkt != null)
+          processPacket(pkt);
+      } catch (EmptyException e) {
+        continue;
+      }
+    }
   }
 
   private void runRandomQueue() {
