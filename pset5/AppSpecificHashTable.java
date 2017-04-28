@@ -1,16 +1,21 @@
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * App-Specific Hash Table
+ * Lock-Free Closed-Address Hash Table
+ *
+ * This design uses a regular ReentrantLock and does not require a readWriteLock, since the contains() method does not
+ * ever make use of the readLock() functionality. This design has the additional requirement that if a contains() and
+ * an add() or a remove() method proceed concurrently that the result of the contains() is linearizable with the other
+ * call.
+ *
+ * The table resizes when the size of any bucket exceeds a max bucket size threshold.
  */
 class AppSpecificHashTable<T> implements HashTable<T> {
 
     private AtomicReference<SerialList<T,Integer>[]> tableReference;
-    private final ReentrantReadWriteLock[] locks;
+    private final ReentrantLock[] locks;
     private final int maxBucketSize;
-
-    private enum LockType { READ, WRITE }
 
     /**
      * @param logSize the starting capacity of the hash table is 2**(logSize)
@@ -21,21 +26,21 @@ class AppSpecificHashTable<T> implements HashTable<T> {
         int capacity = 1 << logSize;
         this.maxBucketSize = maxBucketSize;
         this.tableReference = new AtomicReference(new SerialList[capacity]);
-        this.locks = new ReentrantReadWriteLock[capacity];
+        this.locks = new ReentrantLock[capacity];
         for (int i = 0; i < capacity; i++) {
-            this.locks[i] = new ReentrantReadWriteLock();
+            this.locks[i] = new ReentrantLock();
         }
     }
 
     /**
      * Adds the key value pair to the hash table.
-     * Overwrites the existing value if key already exists.
+     * * Overwrites the existing value if key already exists.
      * @param key key to be added
      * @param val corresponding value
      */
     public void add(int key, T val) {
         try {
-            acquire(key, LockType.WRITE);
+            acquire(key);
             SerialList<T, Integer>[] table = tableReference.get();
             int index = key & (table.length - 1);
             if (table[index] == null)
@@ -43,7 +48,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
             else
                 table[index].add(key, val);
         } finally {
-            release(key, LockType.WRITE);
+            release(key);
         }
         resizeIfNecessary(key);
     }
@@ -55,7 +60,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
      */
     public boolean remove(int key) {
         try {
-            acquire(key, LockType.WRITE);
+            acquire(key);
             SerialList<T, Integer>[] table = tableReference.get();
             int index = key & (table.length - 1);
             if (table[index] != null)
@@ -63,7 +68,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
             else
                 return false;
         } finally {
-            release(key, LockType.WRITE);
+            release(key);
         }
     }
 
@@ -73,38 +78,26 @@ class AppSpecificHashTable<T> implements HashTable<T> {
      * @return true iff the key is in the hash table
      */
     public boolean contains(int key) {
-        try {
-            acquire(key, LockType.READ);
-            SerialList<T, Integer>[] table = tableReference.get();
-            int index = key & (table.length - 1);
-            return table[index] != null && table[index].contains(key);
-        } finally {
-            release(key, LockType.READ);
-        }
+        SerialList<T, Integer>[] table = tableReference.get();
+        int index = key & (table.length - 1);
+        SerialList<T, Integer> list = table[index];
+        return list != null && list.contains(key);
     }
 
     /**
      * Acquires a lock
      * @param key the key the lock should correspond to
-     * @param type the type of lock to acquire (read or write)
      */
-    private void acquire(int key, LockType type) {
-        if (type == LockType.READ)
-            locks[key % locks.length].readLock().lock();
-        else if (type == LockType.WRITE)
-            locks[key % locks.length].writeLock().lock();
+    private void acquire(int key) {
+        locks[key % locks.length].lock();
     }
 
     /**
      * Releases a lock
      * @param key the key the lock should correspond to
-     * @param type the type of lock to release (read or write)
      */
-    private void release(int key, LockType type) {
-        if (type == LockType.READ)
-            locks[key % locks.length].readLock().unlock();
-        else if (type == LockType.WRITE)
-            locks[key % locks.length].writeLock().unlock();
+    private void release(int key) {
+        locks[key % locks.length].unlock();
     }
 
     /**
@@ -115,9 +108,9 @@ class AppSpecificHashTable<T> implements HashTable<T> {
     private void addNoCheck(SerialList<T, Integer>[] table, int key, T x) {
         int index = key & (table.length - 1);
         if (table[index] == null)
-            table[index] = new SerialList<T, Integer>(key, x);
+            table[index] = new SerialList<T,Integer>(key,x);
         else
-            table[index].addNoCheck(key, x);
+            table[index].addNoCheck(key,x);
     }
 
     /**
@@ -143,7 +136,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
         try {
             // Acquire all write locks in sequential order
             for (int i = 0; i < locks.length; i++) {
-                acquire(i, LockType.WRITE);
+                acquire(i);
             }
 
             // Check if someone beat us to it
@@ -169,7 +162,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
         } finally {
             // Release all write locks
             for (int i = 0; i < locks.length; i++) {
-                release(i, LockType.WRITE);
+                release(i);
             }
         }
     }
