@@ -19,7 +19,7 @@ class AppSpecificHashTable<T> implements HashTable<T> {
     @SuppressWarnings("unchecked")
     public AppSpecificHashTable(int logSize, int maxBucketSize) {
         int capacity = 1 << logSize;
-        this.maxBucketSize = 64;
+        this.maxBucketSize = maxBucketSize;
         this.tableReference = new AtomicReference(new SerialList[capacity]);
         this.locks = new ReentrantReadWriteLock[capacity];
         for (int i = 0; i < capacity; i++) {

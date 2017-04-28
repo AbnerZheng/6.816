@@ -27,10 +27,10 @@ def run_test():
     w = 4000
     init_size = 0
 
-    n_workers_vals = [4, 8]
+    n_workers_vals = [4]
     max_bucket_size = 4
 
-    load_vals = [(0.09, 0.01)]
+    load_vals = [(0.09, 0.01), (0.45, 0.05)]
     rho_vals = [0.5]
 
     h_vals = [ 'LockingHashTable',

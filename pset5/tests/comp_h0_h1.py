@@ -55,9 +55,10 @@ def run_test(h0="AwesomeHashTable", h1="LinearProbeHashTable"):
                 h0_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, h0)
                 h1_cmd = 'java ParallelHashPacket %s %d %s' % (params, n_workers, h1)
                 # print h0_cmd
+                # print h1_cmd
                 h0_pkts_per_ms = run_cmd(h0_cmd)
                 h1_pkts_per_ms = run_cmd(h1_cmd)
-                speedup = h1_pkts_per_ms / h0_pkts_per_ms
+                speedup = h0_pkts_per_ms / h1_pkts_per_ms
                 speedups.append(speedup)
                 print '%d Workers\t %f' % (n_workers, speedup)
             print
