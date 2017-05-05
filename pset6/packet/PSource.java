@@ -8,7 +8,6 @@ class PSource {
     final int maxProbes = 4;
 
     public PSource() {
-//        permissions = new LockFreeHashTable<Boolean>(logSize, maxBucketSize);
         permissions = new LinearProbeHashTable<Boolean>(logSize, maxProbes);
     }
 
@@ -32,6 +31,6 @@ class PSource {
      * @param permission new permission value
      */
     public void set(int address, boolean permission) {
-        permissions.add(address, permission);
+        permissions.add(address, !permission);
     }
 }
