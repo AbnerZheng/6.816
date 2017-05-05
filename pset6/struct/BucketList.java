@@ -28,6 +28,10 @@ class Window<T> {
   public T getCurr() {
     return curr.val;
   }
+  @Override
+  public String toString() {
+    return "PRED " + pred.val + ", CURR " + curr.val;
+  }
 }
 
 class LockFreeList<T> {
@@ -50,6 +54,7 @@ class LockFreeList<T> {
     AtomicNode<T> pred = null, curr = null, succ = null;
     boolean[] marked = {false};
     boolean snip;
+    key = makeOrdinaryKey(key);
     retry: while (true) {
       pred = head;
       curr = pred.next.getReference();
@@ -71,7 +76,7 @@ class LockFreeList<T> {
 
   // key is included in the range (pred, succ]
   public Window<T> find(int key) {
-    return find(head, key);
+    return find(head, makeOrdinaryKey(key));
   }
 
   public Window<T> find(AtomicNode<T> head, int key) {
