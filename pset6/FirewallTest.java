@@ -1,5 +1,9 @@
 package pset6;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
+
 class SerialFirewallTest {
     public static void main(String[] args) {
         // Validate arguments
@@ -68,6 +72,98 @@ class SerialFirewallTest {
 
 class ParallelFirewallTest {
     public static void main(String[] args) {
+        // Validate arguments
+        if (args.length != 12) {
+            System.out.println("ERROR: Expected 12 arguments, got " + args.length + ".");
+            System.out.println("java SerialFirewallTest [numMilliseconds] [numAddressesLog] [numTrainsLog] " +
+                    "[meanTrainSize] [meanTrainsPerComm] [meanWindow] [meanCommsPerAddress] [meanWork] " +
+                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers]");
+            return;
+        }
 
+        // Parse arguments
+        final int numMilliseconds = Integer.parseInt(args[0]);
+        final int numAddressesLog = Integer.parseInt(args[1]);
+        final int numTrainsLog = Integer.parseInt(args[2]);
+        final double meanTrainSize = Float.parseFloat(args[3]);
+        final double meanTrainsPerComm = Float.parseFloat(args[4]);
+        final int meanWindow = Integer.parseInt(args[5]);
+        final int meanCommsPerAddress = Integer.parseInt(args[6]);
+        final int meanWork = Integer.parseInt(args[7]);
+        final double configFrac = Float.parseFloat(args[8]);
+        final double pngFrac = Float.parseFloat(args[9]);
+        final double acceptingFrac = Float.parseFloat(args[10]);
+        final int numWorkers = Integer.parseInt(args[11]);
+        final int queueDepth = 8;
+
+        // Initialize values
+        StopWatch timer = new StopWatch();
+        PacketGenerator packetGenerator = new PacketGenerator(numAddressesLog, numTrainsLog, meanTrainSize,
+                meanTrainsPerComm, meanWindow, meanCommsPerAddress, meanWork, configFrac, pngFrac, acceptingFrac);
+        PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
+        PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
+
+        // Dispatcher-worker communication initialization
+        List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
+        List<ReentrantLock> locks = new ArrayList<>();
+        for (int i = 0; i < numWorkers; i++) {
+            queues.add(new WaitFreeQueue<Packet>(queueDepth));
+            locks.add(new ReentrantLock(false));
+        }
+
+        // Packet processing objects
+        PSource png = new PSource();
+        PDestination r = new PDestination(numAddressesLog);
+        Histogram histogram = new Histogram();
+
+        // Allocate and initialize Dispatcher and Worker threads
+        Dispatcher dispatchData = new Dispatcher(done, queues, packetGenerator, numWorkers);
+        Thread dispatchThread = new Thread(dispatchData);
+        List<ParallelWorker> workers = new ArrayList<>();
+        List<Thread> workerThreads = new ArrayList<>();
+        for (int i = 0; i < numWorkers; i++) {
+            ParallelWorker workerData = new ParallelWorker(i, numWorkers, numAddressesLog, packetGenerator, done, queues, locks, png, r, histogram);
+            Thread workerThread = new Thread(workerData);
+            workers.add(workerData);
+            workerThreads.add(workerThread);
+        }
+
+        // Make sure the permission tables are in a steady state
+        workers.get(0).initConfig();
+
+        // Start the experiment
+        for (Thread workerThread : workerThreads)
+            workerThread.start();
+        timer.startTimer();
+        dispatchThread.start();
+
+        try {
+            Thread.sleep(numMilliseconds);
+        } catch (InterruptedException ignore) {;}
+
+        // Stop the experiment and enforce a memory barrier
+        done.value = true;
+        memFence.value = true;
+        try {
+            dispatchThread.join();
+            for (Thread workerThread : workerThreads)
+                workerThread.join();
+        } catch (InterruptedException ignore) {
+            ;
+        }
+
+        timer.stopTimer();
+
+        // Print statistics
+        final double time = timer.getElapsedTime();
+        final long totalPackets = dispatchData.totalPackets;
+        System.out.println("-----------------------------------------");
+        System.out.println("PARALLEL FIREWALL TEST");
+        System.out.println("Total Time: " + time);
+        System.out.println("Packets: " + totalPackets);
+        System.out.println("Throughput: " + (double) totalPackets / time);
+        System.out.println("Histogram:");
+        workers.get(0).printHistogram();
+        System.out.println("-----------------------------------------");
     }
 }
