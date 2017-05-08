@@ -19,7 +19,7 @@ parameters = [
     (16, 14, 15, 12, 9, 5,  8840, 0.04, 0.19, 0.76)
 ]
 num_threads = [2, 4, 8]
-NUM_TRIALS = 1
+NUM_TRIALS = 5
 
 def format_params(p):
     return '%d %d %d %d %d %d %d %f %f %f' % (
@@ -57,11 +57,11 @@ def run_cmd(cmd):
     outputs.sort()
     return outputs[int(len(outputs) / 2)]
 
-def run_test(id_num):
+def run_test(id_num, range_start, range_end):
 
     results = { }
 
-    for p in parameters:
+    for p in parameters[range_start:range_end]:
         print '-----------------------------------------------'
         print 'Starting for params %s' % str(p)
 
@@ -70,7 +70,7 @@ def run_test(id_num):
         if serial_pkt_per_ms is None:
             print 'Couldn\'t parse serial output %s' % str(p)
             continue
-        
+
         # for n in num_threads:
         #     parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
         #     parallel_pkt_per_ms = run_cmd(parallel_cmd)
@@ -113,4 +113,6 @@ def run_test(id_num):
 
 if __name__ == '__main__':
     id_num = sys.argv[1]
-    run_test(id_num)
+    range_start = sys.argv[2]
+    range_end = sys.argv[3]
+    run_test(id_num, range_start, range_end)
