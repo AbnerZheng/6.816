@@ -65,7 +65,7 @@ class SerialFirewallTest {
 //        System.out.println("Packets: " + totalPackets);
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
 //        System.out.println("Histogram:");
-        workerData.printHistogram();
+//        workerData.printHistogram();
 //        System.out.println("-----------------------------------------");
     }
 }
@@ -163,7 +163,7 @@ class ParallelFirewallTest {
 //        System.out.println("Packets: " + totalPackets);
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
 //        System.out.println("Histogram:");
-        workers.get(0).printHistogram();
+//        workers.get(0).printHistogram();
 //        System.out.println("-----------------------------------------");
     }
 }

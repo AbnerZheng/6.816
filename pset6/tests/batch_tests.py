@@ -19,7 +19,8 @@ parameters = [
     (16, 14, 15, 12, 9, 5,  8840, 0.04, 0.19, 0.76)
 ]
 num_threads = [2, 4, 8]
-NUM_TRIALS = 5
+NUM_TRIALS = 1
+SERIAL_THRPTS = [192.455696, 236.595973, 409.960946, 706.905432, 141.082443, 83.552160, 143.426330, 109.234685]
 
 def format_params(p):
     return '%d %d %d %d %d %d %d %f %f %f' % (
@@ -61,58 +62,29 @@ def run_test(id_num, range_start, range_end):
 
     results = { }
 
-    for p in parameters[range_start:range_end]:
+    for i in xrange(range_start, range_end):
+        p = parameters[i]
         print '-----------------------------------------------'
         print 'Starting for params %s' % str(p)
 
-        serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
-        serial_pkt_per_ms = run_cmd(serial_cmd)
-        if serial_pkt_per_ms is None:
-            print 'Couldn\'t parse serial output %s' % str(p)
-            continue
+        # serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
+        # serial_pkt_per_ms = run_cmd(serial_cmd)
+        # if serial_pkt_per_ms is None:
+        #     print 'Couldn\'t parse serial output %s' % str(p)
+        #     continue
+        serial_pkt_per_ms = SERIAL_THRPTS[i]
 
-        # for n in num_threads:
-        #     parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
-        #     parallel_pkt_per_ms = run_cmd(parallel_cmd)
-        #     results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
+        for n in num_threads:
+            parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
+            parallel_pkt_per_ms = run_cmd(parallel_cmd)
+            results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
 
-        # format_result(results, p)
-        print "THROUGHPUT %f" % serial_pkt_per_ms
-
-    # template_path = 'template.tex'
-    # with open(template_path, 'r') as f:
-    #     fig_template = f.read()
-    #
-    # all_figs = ""
-    #
-    # for load in load_vals:
-    #     for rho in rho_vals:
-    #         config_tex = fig_template
-    #         config_tex = config_tex.replace('P_ADD', str(load[0]))
-    #         config_tex = config_tex.replace('P_REM', str(load[1]))
-    #         config_tex = config_tex.replace('RHO', str(rho))
-    #
-    #         for hi in xrange(len(h_vals)):
-    #             for n_workers in n_workers_vals:
-    #                 config_tex = config_tex.replace('HT%d_NAME' % hi, h_vals[hi])
-    #
-    #                 config_tex = config_tex.replace('HT%d_W%d_N' % (hi, n_workers), str(n_workers))
-    #                 config_tex = config_tex.replace('HT%d_W%d_S' % (hi, n_workers),
-    #                                    str(results[ (load, rho, n_workers, hi) ]))
-    #
-    #         all_figs += '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n'
-    #         all_figs += '%%% P_+ = {0} , P_- = {1}, rho = {2} \n'.format(load[0], load[1], rho)
-    #         all_figs += config_tex
-    #         all_figs += '\n\n'
-    #
-    #
-    # with open('results_0.tex' % (T, id_num), 'w') as f:
-    #     f.write(all_figs)
+        format_result(results, p)
 
 ##############################################
 
 if __name__ == '__main__':
     id_num = sys.argv[1]
-    range_start = sys.argv[2]
-    range_end = sys.argv[3]
+    range_start = int(sys.argv[2])
+    range_end = int(sys.argv[3])
     run_test(id_num, range_start, range_end)
