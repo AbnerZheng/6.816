@@ -6,9 +6,11 @@ class PSource {
     final int logSize = 4;
     final int maxBucketSize = 4;
     final int maxProbes = 4;
+    final int numAddresses;
 
-    public PSource() {
-        permissions = new LinearProbeHashTable<Boolean>(logSize, maxProbes);
+    public PSource(int numAddressesLog) {
+        this.numAddresses = 1 << numAddressesLog;
+        this.permissions = new LinearProbeHashTable<Boolean>(logSize, maxProbes);
     }
 
     /**
@@ -28,9 +30,24 @@ class PSource {
     /**
      * Changes the permission of the given address
      * @param address address to set
-     * @param permission new permission value
+     * @param png persona non grata
      */
-    public void set(int address, boolean permission) {
-        permissions.add(address, !permission);
+    public void set(int address, boolean png) {
+        permissions.add(address, !png);
+    }
+
+    /**
+     * Displays the actual pngFraction.
+     * @return
+     */
+    @Override
+    public String toString() {
+        int numValid = 0;
+        for (int i = 0; i < numAddresses; i++) {
+            if (isValid(i)) {
+                numValid++;
+            }
+        }
+        return "pngFraction = " + (1.0 - (double)numValid / numAddresses);
     }
 }

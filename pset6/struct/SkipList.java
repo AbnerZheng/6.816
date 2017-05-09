@@ -162,7 +162,7 @@ class LockFreeSkipList<T> implements SkipList<T> {
                         curr = pred.next[level].getReference();
                         succ = curr.next[level].get(marked);
                     }
-                    if (curr.key < key) {
+                    if (curr.key <= key) {
                         pred = curr;
                         curr = succ;
                     } else {

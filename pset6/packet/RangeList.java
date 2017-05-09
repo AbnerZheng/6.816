@@ -1,5 +1,7 @@
 package pset6;
 
+import java.util.concurrent.atomic.*;
+
 class RangeNode {
     int begin;
     int end;
@@ -79,7 +81,7 @@ class RangeList {
         }
 
         // Include end
-        window = ranges.findWindow(end - 1);
+        window = ranges.findWindow(end);
         pred = window.getPred();
         curr = window.getCurr();
         if (pred != null && end <= pred.end) {
@@ -122,7 +124,7 @@ class RangeList {
         }
 
         // Remove end
-        window = ranges.findWindow(end - 1);
+        window = ranges.findWindow(end);
         pred = window.getPred();
         curr = window.getCurr();
         if (pred != null && end <= pred.end) {
@@ -169,6 +171,17 @@ class RangeListTest {
         System.out.println(list);  // [10, 20) [50, 90) [100, 101)
 
         list.add(15, 92);
-        System.out.println(list);  // [10, 92) [100, 101)
+//        System.out.println(list);  // [10, 92) [100, 101)
+
+//        RangeList list = new RangeList(0, 16384);  // [0, 16385)
+//        list.remove(9955, 9990);  // [0, 9955) [9990, 16385)
+//        list.add(9974, 9990);  // [0, 9955) [9974, 16385)
+
+//        RangeList list = new RangeList(0, 16384);  // [0, 16385)
+//        System.out.println(list);
+//        list.remove(11450, 11471);  // [0, 11450) [11471, 16385)
+//        System.out.println(list);
+//        list.add(11392, 11471);  // [0, 16835)
+//        System.out.println(list);
     }
 }

@@ -33,6 +33,14 @@ class Histogram {
         buckets[bucketNum]++;
     }
 
+    public long getTotalPackets() {
+        long sum = 0;
+        for (int i = 0; i < numBuckets; i++) {
+            sum += buckets[i];
+        }
+        return sum;
+    }
+
     @Override
     public String toString() {
 //        String[] strs = new String[numBuckets];
@@ -40,12 +48,10 @@ class Histogram {
 //            strs[i] = i * bucketSize + "-" + (i + 1) * bucketSize + "\t " + buckets[i];
 //        }
 //        return "Number of Buckets: " + numBuckets + "\nBucket Size: " + bucketSize + "\n" + String.join("\n", strs);
-        long sum = 0;
         String[] strs = new String[numBuckets];
         for (int i = 0; i < numBuckets; i++) {
-            sum += buckets[i];
             strs[i] = Integer.toString(buckets[i]);
         }
-        return String.join(", ", strs) + "\nTotal processed: " + sum;
+        return String.join(", ", strs) + "\nTotal processed: " + getTotalPackets();
     }
 }

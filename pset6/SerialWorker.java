@@ -20,7 +20,7 @@ class SerialWorker implements FirewallWorker {
         this.done = done;
         this.source = source;
         this.fingerprint = new Fingerprint();
-        this.png = new PSource();
+        this.png = new PSource(numAddressesLog  );
         this.r = new PDestination(numAddressesLog);
         this.histogram = new Histogram();
         this.numAddressesLog = numAddressesLog;
@@ -31,7 +31,7 @@ class SerialWorker implements FirewallWorker {
      * packets to ensure the permissions tables are in steady state.
      */
     public void initConfig() {
-        System.out.println("Initializing permissions table...");
+        System.out.printf("Initializing permissions table");
         Packet pkt;
         final int numAddresses = 1 << numAddressesLog;
         final int initSize = (int)Math.pow(numAddresses, 1.5);
@@ -39,17 +39,10 @@ class SerialWorker implements FirewallWorker {
         for (int i = 0; i < initSize; i++) {
             if (i % initSizeFrac == initSizeFrac - 1)
                 System.out.printf(".");
-            pkt = source.getPacket();
-            switch(pkt.type) {
-                case ConfigPacket:
-                    handleConfigPacket(pkt.config);
-                    break;
-                case DataPacket:
-                    handleDataPacket(pkt.header, pkt.body);
-                    break;
-            }
+            pkt = source.getConfigPacket();
+            handleConfigPacket(pkt.config);
         }
-        System.out.println("\nDone initializing permissions table.");
+        System.out.println("DONE");
     }
 
     /**

@@ -71,6 +71,9 @@ class SerialFirewallTest {
 }
 
 class ParallelFirewallTest {
+
+    public static final int MAX_PKTS_IN_FLIGHT = 256;
+
     public static void main(String[] args) {
         // Validate arguments
         if (args.length != 12) {
@@ -94,7 +97,7 @@ class ParallelFirewallTest {
         final double pngFrac = Float.parseFloat(args[9]);
         final double acceptingFrac = Float.parseFloat(args[10]);
         final int numWorkers = Integer.parseInt(args[11]);
-        final int queueDepth = 8;
+        final int queueDepth = MAX_PKTS_IN_FLIGHT / numWorkers;
 
         // Initialize values
         StopWatch timer = new StopWatch();
@@ -112,7 +115,7 @@ class ParallelFirewallTest {
         }
 
         // Packet processing objects
-        PSource png = new PSource();
+        PSource png = new PSource(numAddressesLog);
         PDestination r = new PDestination(numAddressesLog);
         Histogram histogram = new Histogram();
 
@@ -157,13 +160,19 @@ class ParallelFirewallTest {
         // Print statistics
         final double time = timer.getElapsedTime();
         final long totalPackets = dispatchData.totalPackets;
-//        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
 //        System.out.println("PARALLEL FIREWALL TEST");
 //        System.out.println("Total Time: " + time);
-//        System.out.println("Packets: " + totalPackets);
+
+
+        final long exp = (long)(totalPackets * configFrac + totalPackets * (1 - configFrac) * (1 - pngFrac) * acceptingFrac);
+        final double acc = 100.0 * (1.0 - (float) Math.abs(exp - histogram.getTotalPackets()) / exp);
+        final String accStr = String.format("%.2f", acc);
+        System.out.println("Expected " + exp + " / " + totalPackets + " packets, " + accStr + "% accuracy");
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
-//        System.out.println("Histogram:");
-//        workers.get(0).printHistogram();
-//        System.out.println("-----------------------------------------");
+        System.out.println(png);
+        System.out.println(r);
+        System.out.println("Total packets processed: " + histogram.getTotalPackets());
+        System.out.println("-----------------------------------------");
     }
 }

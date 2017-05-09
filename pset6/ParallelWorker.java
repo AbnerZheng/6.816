@@ -57,16 +57,16 @@ class ParallelWorker implements FirewallWorker {
      * packets to ensure the permissions tables are in steady state.
      */
     public void initConfig() {
-        System.out.println("Initializing permissions table...");
+        System.out.printf("Initializing permissions table");
         final int numAddresses = 1 << numAddressesLog;
         final int initSize = (int)Math.pow(numAddresses, 1.5);
         final int initSizeFrac = initSize / 20;
         for (int i = 0; i < initSize; i++) {
             if (i % initSizeFrac == initSizeFrac - 1)
                 System.out.printf(".");
-            processPacket(source.getPacket());
+            handleConfigPacket(source.getConfigPacket().config);
         }
-        System.out.println("\nDone initializing permissions table.");
+        System.out.println("DONE");
     }
 
     public void run() {

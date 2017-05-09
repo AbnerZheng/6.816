@@ -52,4 +52,25 @@ class PDestination {
             list.remove(addressBegin, addressEnd);
         }
     }
+
+    /**
+     * Displays the actual acceptingFraction.
+     * @return
+     */
+    @Override
+    public String toString() {
+        long numValid = 0;
+        long total = maxAddress * maxAddress;
+        for (int i = 0; i < maxAddress; i++) {
+            RangeList list = table.get(i);
+            if (list == null) continue;
+            LockFreeSkipList<RangeNode> ranges = list.ranges;
+            LockFreeSkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0].getReference();
+            while (node.value != null) {
+                numValid += node.value.end - node.value.begin;
+                node = node.next[0].getReference();
+            }
+        }
+        return "acceptingFraction = " + ((double)numValid / total);
+    }
 }
