@@ -1,6 +1,6 @@
 package pset6;
 
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.Random;
@@ -28,7 +28,7 @@ class ParallelWorker implements FirewallWorker {
     long totalPackets = 0;
 
     // Global lock??
-    private static ReentrantLock globalLock = new ReentrantLock();
+    private static ReentrantReadWriteLock globalLock = new ReentrantReadWriteLock();
 
     public ParallelWorker(int threadID,
                           int numWorkers,
@@ -141,10 +141,10 @@ class ParallelWorker implements FirewallWorker {
 
         // The packet does not have the appropriate permissions
         try {
-            globalLock.lock();
+            globalLock.readLock().lock();
             if (!png.isValid(source) || !r.isValid(source, dest)) return;
         } finally {
-            globalLock.unlock();
+            globalLock.readLock().unlock();
         }
 
         // Process the packet
@@ -161,10 +161,10 @@ class ParallelWorker implements FirewallWorker {
         final int address = config.address;
         png.set(address, config.personaNonGrata);
         try {
-            globalLock.lock();
+            globalLock.writeLock().lock();
             r.set(address, config.addressBegin, config.addressEnd, config.acceptingRange);
         } finally {
-            globalLock.unlock();
+            globalLock.writeLock().unlock();
         }
     }
 
