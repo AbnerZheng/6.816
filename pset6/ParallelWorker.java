@@ -1,6 +1,6 @@
 package pset6;
 
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.Random;
@@ -79,6 +79,59 @@ class ParallelWorker implements FirewallWorker {
         cleanUp();
     }
 
+    private void runLockFree() {
+        WaitFreeQueue<Packet> queue = queues.get(threadID);
+        while (!done.value) {
+            try {
+                Packet pkt = queue.deq();
+                processPacket(pkt);
+            } catch (EmptyException e) {
+                continue;
+            }
+        }
+    }
+
+    private int pickUncontendedID(Random rand) {
+        int id = rand.nextInt(numWorkers);
+        ReentrantLock lock = locks.get(id);
+        while (lock.isLocked()) {
+            id = rand.nextInt(numWorkers);
+            lock = locks.get(id);
+        }
+        return id;
+    }
+
+    private void runLastQueue() {
+        int id;
+        Random rand = new Random();
+        WaitFreeQueue<Packet> queue;
+        ReentrantLock lock;
+
+        // Choose a random uncontended queue
+        id = pickUncontendedID(rand);
+        lock = locks.get(id);
+        queue = queues.get(id);
+        Packet pkt;
+        while (!done.value) {
+            try {
+                lock.lock();
+                pkt = queue.deq();
+            } catch (EmptyException e) {
+                pkt = null;
+            } finally {
+                lock.unlock();
+            }
+            if (pkt != null) {
+                processPacket(pkt);
+            } else {
+                // Pick another random uncontended queue
+                id = pickUncontendedID(rand);
+                lock = locks.get(id);
+                queue = queues.get(id);
+            }
+        }
+    }
+
     private void runRandomQueue() {
         Random rand = new Random();
         WaitFreeQueue<Packet> queue;
@@ -117,14 +170,15 @@ class ParallelWorker implements FirewallWorker {
      * @param pkt packet
      */
     private void processPacket(Packet pkt) {
-        switch (pkt.type) {
-        case ConfigPacket:
-            handleConfigPacket(pkt.config);
-            break;
-        case DataPacket:
-            handleDataPacket(pkt.header, pkt.body);
-            break;
-        }
+        return;
+//        switch (pkt.type) {
+//        case ConfigPacket:
+//            handleConfigPacket(pkt.config);
+//            break;
+//        case DataPacket:
+//            handleDataPacket(pkt.header, pkt.body);
+//            break;
+//        }
     }
 
     /**
@@ -141,10 +195,10 @@ class ParallelWorker implements FirewallWorker {
 
         // The packet does not have the appropriate permissions
         try {
-            globalLock.readLock.lock();
+            globalLock.readLock().lock();
             if (!png.isValid(source) || !r.isValid(source, dest)) return;
         } finally {
-            globalLock.readLock.unlock();
+            globalLock.readLock().unlock();
         }
 
         // Process the packet
@@ -161,10 +215,10 @@ class ParallelWorker implements FirewallWorker {
         final int address = config.address;
         png.set(address, config.personaNonGrata);
         try {
-            globalLock.writeLock.lock();
+            globalLock.writeLock().lock();
             r.set(address, config.addressBegin, config.addressEnd, config.acceptingRange);
         } finally {
-            globalLock.writeLock.unlock();
+            globalLock.writeLock().unlock();
         }
     }
 
