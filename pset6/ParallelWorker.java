@@ -113,18 +113,13 @@ class ParallelWorker implements FirewallWorker {
      * @param pkt packet
      */
     private void processPacket(Packet pkt) {
-        try {
-            globalLock.lock();
-            switch (pkt.type) {
-                case ConfigPacket:
-                    handleConfigPacket(pkt.config);
-                    break;
-                case DataPacket:
-                    handleDataPacket(pkt.header, pkt.body);
-                    break;
-            }
-        } finally {
-            globalLock.unlock();
+        switch (pkt.type) {
+        case ConfigPacket:
+            handleConfigPacket(pkt.config);
+            break;
+        case DataPacket:
+            handleDataPacket(pkt.header, pkt.body);
+            break;
         }
     }
 
@@ -141,7 +136,12 @@ class ParallelWorker implements FirewallWorker {
         final int dest = header.dest;
 
         // The packet does not have the appropriate permissions
-        if (!png.isValid(source) || !r.isValid(source, dest)) return;
+        try {
+            globalLock.lock();
+            if (!png.isValid(source) || !r.isValid(source, dest)) return;
+        } finally {
+            globalLock.unlock();
+        }
 
         // Process the packet
         int fprnt = fingerprint.getFingerprint(body.iterations, body.seed);
@@ -156,7 +156,12 @@ class ParallelWorker implements FirewallWorker {
     private void handleConfigPacket(Config config) {
         final int address = config.address;
         png.set(address, config.personaNonGrata);
-        r.set(address, config.addressBegin, config.addressEnd, config.acceptingRange);
+        try {
+            globalLock.lock();
+            r.set(address, config.addressBegin, config.addressEnd, config.acceptingRange);
+        } finally {
+            globalLock.unlock();
+        }
     }
 
     /**
