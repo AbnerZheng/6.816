@@ -33,14 +33,14 @@ class RangeList {
 
     // To be replaced with skip lists. Must be some list where all the elements are sorted.
     // A range [a, b) is represented by RangeNode(a, b)
-    LockFreeSkipList<RangeNode> ranges;
+    LazySkipList<RangeNode> ranges;
     final int min;
     final int max;
 
     public RangeList(int min, int max) {
         this.min = min;
         this.max = max + 1;
-        ranges = new LockFreeSkipList<RangeNode>();
+        ranges = new LazySkipList<RangeNode>();
         ranges.add(new RangeNode(this.min, this.max));
     }
 
@@ -53,8 +53,7 @@ class RangeList {
         // The window will return two ranges [a, b) and [c, d)
         // val is by definition in the range [a, c)
         // The range list contains val if val is in [a, b), and doesn't if val is in [b, c)
-        LockFreeSkipList<RangeNode>.SkipListWindow<RangeNode> window = ranges.findWindow(val);
-        RangeNode pred = window.getPred();
+        RangeNode pred = ranges.findPred(val).value;
         return pred != null && val < pred.end;
     }
 
@@ -64,15 +63,12 @@ class RangeList {
      * @param end range end, exclusive
      */
     public void add(int begin, int end) {
-        LockFreeSkipList<RangeNode>.SkipListWindow<RangeNode> window;
-        RangeNode pred, curr;
+        RangeNode pred;
         int beginToAdd = begin;
         int endToAdd = end;
 
         // Include begin
-        window = ranges.findWindow(begin);
-        pred = window.getPred();
-        curr = window.getCurr();
+        pred = ranges.findPred(begin).value;
         if (pred != null && begin < pred.end) {
             // Range is already included
             if (end <= pred.end) return;
@@ -81,9 +77,7 @@ class RangeList {
         }
 
         // Include end
-        window = ranges.findWindow(end);
-        pred = window.getPred();
-        curr = window.getCurr();
+        pred = ranges.findPred(end).value;
         if (pred != null && end <= pred.end) {
             endToAdd = pred.end;
             ranges.remove(pred);
@@ -93,10 +87,10 @@ class RangeList {
         ranges.add(new RangeNode(beginToAdd, endToAdd));
 
         // Remove overlapping ranges (pred should be the newly-added range)
-        LockFreeSkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findWindow(begin).curr;
+        LazySkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
         while (currNode.value != null && currNode.value.begin <= endToAdd) {
             ranges.remove(currNode.value);
-            currNode = currNode.next[0].getReference();
+            currNode = currNode.next[0];
         }
     }
 
@@ -106,13 +100,10 @@ class RangeList {
      * @param end range end, exclusive
      */
     public void remove(int begin, int end) {
-        LockFreeSkipList<RangeNode>.SkipListWindow<RangeNode> window;
-        RangeNode pred, curr;
+        RangeNode pred;
 
         // Remove begin
-        window = ranges.findWindow(begin);
-        pred = window.getPred();
-        curr = window.getCurr();
+        pred = ranges.findPred(begin).value;
         if (pred != null && begin < pred.end) {
             ranges.remove(pred);
             if (begin > pred.begin)
@@ -124,9 +115,7 @@ class RangeList {
         }
 
         // Remove end
-        window = ranges.findWindow(end);
-        pred = window.getPred();
-        curr = window.getCurr();
+        pred = ranges.findPred(end).value;
         if (pred != null && end <= pred.end) {
             ranges.remove(pred);
             if (end < pred.end) {
@@ -135,20 +124,20 @@ class RangeList {
         }
 
         // Remove overlapping ranges
-        LockFreeSkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findWindow(begin).curr;
+        LazySkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
         while (currNode.value != null && currNode.value.end <= end) {
             ranges.remove(currNode.value);
-            currNode = currNode.next[0].getReference();
+            currNode = currNode.next[0];
         }
     }
 
     @Override
     public String toString() {
-        LockFreeSkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0].getReference();
+        LazySkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
         String str = "";
         while (node.value != null) {
             str += node.value.toString() + " ";
-            node = node.next[0].getReference();
+            node = node.next[0];
         }
         return str;
     }

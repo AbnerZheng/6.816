@@ -64,11 +64,11 @@ class PDestination {
         for (int i = 0; i < maxAddress; i++) {
             RangeList list = table.get(i);
             if (list == null) continue;
-            LockFreeSkipList<RangeNode> ranges = list.ranges;
-            LockFreeSkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0].getReference();
+            LazySkipList<RangeNode> ranges = list.ranges;
+            LazySkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
             while (node.value != null) {
                 numValid += node.value.end - node.value.begin;
-                node = node.next[0].getReference();
+                node = node.next[0];
             }
         }
         return "acceptingFraction = " + ((double)numValid / total);
