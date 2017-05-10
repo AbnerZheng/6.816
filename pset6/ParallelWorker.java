@@ -12,12 +12,13 @@ class ParallelWorker implements FirewallWorker {
     private final int numWorkers;
     private final int numAddressesLog;
     private final PacketGenerator source;
+    private final int queueStrategy;
 
     // Obtain packet tasks
     private final PaddedPrimitiveNonVolatile<Boolean> done;
     private final PaddedPrimitiveNonVolatile<AtomicInteger> initDone;
     private final List<WaitFreeQueue<Packet>> queues;
-    private final List<ReentrantLock> locks;
+    private final List<Lock> locks;
 
     // Statistics
     private final Fingerprint fingerprint;
@@ -37,10 +38,11 @@ class ParallelWorker implements FirewallWorker {
                           PaddedPrimitiveNonVolatile<Boolean> done,
                           PaddedPrimitiveNonVolatile<AtomicInteger> initDone,
                           List<WaitFreeQueue<Packet>> queues,
-                          List<ReentrantLock> locks,
+                          List<Lock> locks,
                           PSource png,
                           PDestination r,
-                          Histogram histogram) {
+                          Histogram histogram,
+                          int queueStrategy) {
         this.threadID = threadID;
         this.numWorkers = numWorkers;
         this.numAddressesLog = numAddressesLog;
@@ -54,6 +56,7 @@ class ParallelWorker implements FirewallWorker {
         this.r = r;
         this.histogram = new Histogram();
         this.cached = histogram;
+        this.queueStrategy = queueStrategy;
     }
 
     /**
@@ -75,7 +78,11 @@ class ParallelWorker implements FirewallWorker {
     public void run() {
         initConfig();
         histogram = cached;
-        runRandomQueue();
+        switch(queueStrategy) {
+            case 0: runLockFree(); break;
+            case 1: runRandomQueue(); break;
+            case 2: runLastQueue(); break;
+        }
         cleanUp();
     }
 
@@ -93,8 +100,8 @@ class ParallelWorker implements FirewallWorker {
 
     private int pickUncontendedID(Random rand) {
         int id = rand.nextInt(numWorkers);
-        ReentrantLock lock = locks.get(id);
-        while (lock.isLocked()) {
+        Lock lock = locks.get(id);
+        while (lock.isContended()) {
             id = rand.nextInt(numWorkers);
             lock = locks.get(id);
         }
@@ -105,7 +112,7 @@ class ParallelWorker implements FirewallWorker {
         int id;
         Random rand = new Random();
         WaitFreeQueue<Packet> queue;
-        ReentrantLock lock;
+        Lock lock;
 
         // Choose a random uncontended queue
         id = pickUncontendedID(rand);
@@ -135,7 +142,7 @@ class ParallelWorker implements FirewallWorker {
     private void runRandomQueue() {
         Random rand = new Random();
         WaitFreeQueue<Packet> queue;
-        ReentrantLock lock;
+        Lock lock;
         Packet pkt;
         while (!done.value) {
             // Choose a random queue

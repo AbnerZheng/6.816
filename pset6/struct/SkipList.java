@@ -25,7 +25,7 @@ class LazySkipList<T> implements SkipList<T> {
     public final SkipListNode<T> tail = new SkipListNode<T>(Integer.MAX_VALUE);
 
     public class SkipListNode<T> {
-        final Lock lock = new ReentrantLock();
+        final ReentrantLock lock = new ReentrantLock();
         final T value;
         final int key;
         final SkipListNode<T>[] next;

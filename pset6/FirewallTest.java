@@ -77,11 +77,11 @@ class ParallelFirewallTest {
 
     public static void main(String[] args) {
         // Validate arguments
-        if (args.length != 12) {
-            System.out.println("ERROR: Expected 12 arguments, got " + args.length + ".");
+        if (args.length != 14) {
+            System.out.println("ERROR: Expected 14 arguments, got " + args.length + ".");
             System.out.println("java SerialFirewallTest [numMilliseconds] [numAddressesLog] [numTrainsLog] " +
                     "[meanTrainSize] [meanTrainsPerComm] [meanWindow] [meanCommsPerAddress] [meanWork] " +
-                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers]");
+                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers] [lockType] [queueStrategy]");
             return;
         }
 
@@ -98,6 +98,8 @@ class ParallelFirewallTest {
         final double pngFrac = Float.parseFloat(args[9]);
         final double acceptingFrac = Float.parseFloat(args[10]);
         final int numWorkers = Integer.parseInt(args[11]);
+        final int lockType = Integer.parseInt(args[12]);  // TAS, Backoff, ReentrantWrapper, CLH, MCS
+        final int queueStrategy = Integer.parseInt(args[13]);  // LockFree, RandomQueue, LastQueue
         final int queueDepth = MAX_PKTS_IN_FLIGHT / numWorkers;
 
         // Initialize values
@@ -110,10 +112,10 @@ class ParallelFirewallTest {
 
         // Dispatcher-worker communication initialization
         List<WaitFreeQueue<Packet>> queues = new ArrayList<>();
-        List<ReentrantLock> locks = new ArrayList<>();
+        List<Lock> locks = new ArrayList<>();
         for (int i = 0; i < numWorkers; i++) {
             queues.add(new WaitFreeQueue<Packet>(queueDepth));
-            locks.add(new ReentrantLock(false));
+            locks.add(LockAllocator.getLock(lockType));
         }
 
         // Packet processing objects
@@ -127,7 +129,7 @@ class ParallelFirewallTest {
         List<ParallelWorker> workers = new ArrayList<>();
         List<Thread> workerThreads = new ArrayList<>();
         for (int i = 0; i < numWorkers; i++) {
-            ParallelWorker workerData = new ParallelWorker(i, numWorkers, numAddressesLog, packetGenerator, done, initDone, queues, locks, png, r, histogram);
+            ParallelWorker workerData = new ParallelWorker(i, numWorkers, numAddressesLog, packetGenerator, done, initDone, queues, locks, png, r, histogram, queueStrategy);
             Thread workerThread = new Thread(workerData);
             workers.add(workerData);
             workerThreads.add(workerThread);
