@@ -7,9 +7,6 @@ import java.util.concurrent.locks.*;
 interface SkipList<T> {
     static final Random rand = new Random();
     static final int MAX_LEVEL = 16;
-    static int randomLevel() {
-        return rand.nextInt(MAX_LEVEL);
-    }
 
 //    class SkipListNode<T> {};
     boolean add(T x);
@@ -23,6 +20,10 @@ interface SkipList<T> {
 class LazySkipList<T> implements SkipList<T> {
     public final SkipListNode<T> head = new SkipListNode<T>(Integer.MIN_VALUE);
     public final SkipListNode<T> tail = new SkipListNode<T>(Integer.MAX_VALUE);
+
+    private int randomLevel() {
+	return rand.nextInt(MAX_LEVEL);
+    }
 
     public class SkipListNode<T> {
         final ReentrantLock lock = new ReentrantLock();
@@ -114,7 +115,7 @@ class LazySkipList<T> implements SkipList<T> {
     }
 
     public boolean add(T x) {
-        int topLevel = SkipList.randomLevel();
+        int topLevel = randomLevel();
         SkipListNode<T> preds[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
         SkipListNode<T> succs[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
         while (true) {
@@ -211,6 +212,10 @@ class LockFreeSkipList<T> implements SkipList<T> {
     public final SkipListNode<T> head = new SkipListNode<T>(Integer.MIN_VALUE);
     public final SkipListNode<T> tail = new SkipListNode<T>(Integer.MAX_VALUE);
 
+    private int randomLevel() {
+	return rand.nextInt(MAX_LEVEL);
+    }
+
     public class SkipListNode<T> {
         public final int key;
         public final T value;
@@ -270,7 +275,7 @@ class LockFreeSkipList<T> implements SkipList<T> {
     }
 
     public boolean add(T x) {
-        int topLevel = SkipList.randomLevel();
+        int topLevel = randomLevel();
         int bottomLevel = 0;
         SkipListNode<T>[] preds = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
         SkipListNode<T>[] succs = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];

@@ -52,6 +52,6 @@ class Histogram {
         for (int i = 0; i < numBuckets; i++) {
             strs[i] = Integer.toString(buckets[i]);
         }
-        return String.join(", ", strs) + "\nTotal processed: " + getTotalPackets();
+        return strs.toString() + "\nTotal processed: " + getTotalPackets();
     }
 }
