@@ -26,14 +26,12 @@ class Dispatcher implements FirewallWorker {
             // Add a packet to each queue
             for (int i = 0; i < numWorkers; i++) {
                 pkt = source.getPacket();
-                while (true) {
-                    try {
-                        queues.get(i).enq(pkt);
-                        totalPackets++;
-                        break;
-                    } catch (FullException e) {
-                        continue; // Try again until it's not full
-                    }
+                try {
+                    queues.get(i).enq(pkt);
+                    totalPackets++;
+                    break;
+                } catch (FullException e) {
+                    continue; // Try again until it's not full
                 }
             }
         }

@@ -12,7 +12,7 @@ class PDestination {
     public PDestination(int numAddressesLog) {
         minAddress = 0;
         maxAddress = 1 << numAddressesLog;
-        table = new LinearProbeHashTable<RangeList>(logSize, maxProbes);
+        table = new ArrayHashTable<RangeList>(numAddressesLog);
     }
 
     /**

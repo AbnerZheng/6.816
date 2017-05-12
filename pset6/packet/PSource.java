@@ -10,7 +10,7 @@ class PSource {
 
     public PSource(int numAddressesLog) {
         this.numAddresses = 1 << numAddressesLog;
-        this.permissions = new LinearProbeHashTable<Boolean>(logSize, maxProbes);
+        this.permissions = new ArrayHashTable<Boolean>(numAddressesLog);
     }
 
     /**

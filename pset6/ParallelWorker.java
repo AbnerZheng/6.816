@@ -2,6 +2,7 @@ package pset6;
 
 import java.util.concurrent.locks.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.*;
 import java.util.List;
 import java.util.Random;
 
@@ -16,7 +17,6 @@ class ParallelWorker implements FirewallWorker {
 
     // Obtain packet tasks
     private final PaddedPrimitiveNonVolatile<Boolean> done;
-    private final PaddedPrimitiveNonVolatile<AtomicInteger> initDone;
     private final List<WaitFreeQueue<Packet>> queues;
     private final List<Lock> locks;
 
@@ -28,6 +28,9 @@ class ParallelWorker implements FirewallWorker {
     private Histogram cached;
     long totalPackets = 0;
 
+    // Train cache
+    private int tag = -1;
+
     // Global lock??
     private static ReentrantReadWriteLock globalLock = new ReentrantReadWriteLock();
 
@@ -36,7 +39,6 @@ class ParallelWorker implements FirewallWorker {
                           int numAddressesLog,
                           PacketGenerator source,
                           PaddedPrimitiveNonVolatile<Boolean> done,
-                          PaddedPrimitiveNonVolatile<AtomicInteger> initDone,
                           List<WaitFreeQueue<Packet>> queues,
                           List<Lock> locks,
                           PSource png,
@@ -48,7 +50,6 @@ class ParallelWorker implements FirewallWorker {
         this.numAddressesLog = numAddressesLog;
         this.source = source;
         this.done = done;
-        this.initDone = initDone;
         this.queues = queues;
         this.locks = locks;
         this.fingerprint = new Fingerprint();
@@ -64,19 +65,19 @@ class ParallelWorker implements FirewallWorker {
      * packets to ensure the permissions tables are in steady state.
      */
     public void initConfig() {
+        System.out.printf("Initializing permissions table");
         final int numAddresses = 1 << numAddressesLog;
-        final int initSize = (int)Math.pow(numAddresses, 1.5) / numWorkers;
-        final int initSizeFrac = initSize / 20 * numWorkers;
+        final int initSize = (int)Math.pow(numAddresses, 1.5);
+        final int initSizeFrac = initSize / 20;
         for (int i = 0; i < initSize; i++) {
             if (i % initSizeFrac == initSizeFrac - 1)
                 System.out.printf(".");
             handleConfigPacket(source.getConfigPacket().config);
         }
-        initDone.value.getAndDecrement();
+        System.out.println("DONE");
     }
 
     public void run() {
-        initConfig();
         histogram = cached;
         switch(queueStrategy) {
             case 0: runLockFree(); break;
@@ -196,21 +197,31 @@ class ParallelWorker implements FirewallWorker {
      * @param header packet header
      * @param body packet body
      */
+    private int match = 0;
+    private int noMatch = 0;
+    private int fails = 0;
     private void handleDataPacket(Header header, Body body) {
         final int source = header.source;
         final int dest = header.dest;
 
+//        System.out.println("MATCH " + match + ", NOMATCH " + noMatch + ", FAIL " + fails);
         // The packet does not have the appropriate permissions
-        try {
-            globalLock.readLock().lock();
-            if (!png.isValid(source) || !r.isValid(source, dest)) return;
-        } finally {
-            globalLock.readLock().unlock();
+        if (header.tag != tag) {
+            try {
+                globalLock.readLock().lock();
+                if (!png.isValid(source) || !r.isValid(source, dest)) {
+                    fails++;
+                    return;
+                }
+            } finally {
+                globalLock.readLock().unlock();
+            }
         }
 
         // Process the packet
         int fprnt = fingerprint.getFingerprint(body.iterations, body.seed);
         histogram.add(fprnt);
+        tag = header.tag;
     }
 
     /**
