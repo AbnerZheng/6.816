@@ -1,7 +1,7 @@
 package pset6;
 
-import java.util.concurrent.locks.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.*;
 import java.util.List;
 import java.util.Random;
 
@@ -15,7 +15,6 @@ class ParallelWorker implements FirewallWorker {
 
     // Obtain packet tasks
     private final PaddedPrimitiveNonVolatile<Boolean> done;
-    private final PaddedPrimitiveNonVolatile<AtomicInteger> initDone;
     private final List<WaitFreeQueue<Packet>> queues;
     private final List<ReentrantLock> locks;
 
@@ -38,7 +37,6 @@ class ParallelWorker implements FirewallWorker {
                           int numAddressesLog,
                           PacketGenerator source,
                           PaddedPrimitiveNonVolatile<Boolean> done,
-                          PaddedPrimitiveNonVolatile<AtomicInteger> initDone,
                           List<WaitFreeQueue<Packet>> queues,
                           List<ReentrantLock> locks,
                           PSource png,
@@ -49,7 +47,6 @@ class ParallelWorker implements FirewallWorker {
         this.numAddressesLog = numAddressesLog;
         this.source = source;
         this.done = done;
-        this.initDone = initDone;
         this.queues = queues;
         this.locks = locks;
         this.fingerprint = new Fingerprint();
@@ -64,19 +61,19 @@ class ParallelWorker implements FirewallWorker {
      * packets to ensure the permissions tables are in steady state.
      */
     public void initConfig() {
+        System.out.printf("Initializing permissions table");
         final int numAddresses = 1 << numAddressesLog;
-        final int initSize = (int)Math.pow(numAddresses, 1.5) / numWorkers;
-        final int initSizeFrac = initSize / 20 * numWorkers;
+        final int initSize = (int)Math.pow(numAddresses, 1.5);
+        final int initSizeFrac = initSize / 20;
         for (int i = 0; i < initSize; i++) {
             if (i % initSizeFrac == initSizeFrac - 1)
                 System.out.printf(".");
             handleConfigPacket(source.getConfigPacket().config);
         }
-        initDone.value.getAndDecrement();
+        System.out.println("DONE");
     }
 
     public void run() {
-        initConfig();
         histogram = cached;
         runRandomQueue();
         cleanUp();

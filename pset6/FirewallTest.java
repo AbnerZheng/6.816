@@ -3,7 +3,6 @@ package pset6;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.atomic.AtomicInteger;
 
 class SerialFirewallTest {
     public static void main(String[] args) {
@@ -105,7 +104,6 @@ class ParallelFirewallTest {
         PacketGenerator packetGenerator = new PacketGenerator(numAddressesLog, numTrainsLog, meanTrainSize,
                 meanTrainsPerComm, meanWindow, meanCommsPerAddress, meanWork, configFrac, pngFrac, acceptingFrac);
         PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
-        PaddedPrimitiveNonVolatile<AtomicInteger> initDone = new PaddedPrimitiveNonVolatile<AtomicInteger>(new AtomicInteger(numWorkers));
         PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
 
         // Dispatcher-worker communication initialization
@@ -127,21 +125,18 @@ class ParallelFirewallTest {
         List<ParallelWorker> workers = new ArrayList<>();
         List<Thread> workerThreads = new ArrayList<>();
         for (int i = 0; i < numWorkers; i++) {
-            ParallelWorker workerData = new ParallelWorker(i, numWorkers, numAddressesLog, packetGenerator, done, initDone, queues, locks, png, r, histogram);
+            ParallelWorker workerData = new ParallelWorker(i, numWorkers, numAddressesLog, packetGenerator, done, queues, locks, png, r, histogram);
             Thread workerThread = new Thread(workerData);
             workers.add(workerData);
             workerThreads.add(workerThread);
         }
 
-
         // Make sure the permission tables are in a steady state
-        System.out.printf("Initializing permissions table");
-        for (Thread workerThread : workerThreads)
-            workerThread.start();
-        while (initDone.value.get() != 0) {;}
-        System.out.println("DONE");
+        workers.get(0).initConfig();
 
         // Start the experiment
+        for (Thread workerThread : workerThreads)
+            workerThread.start();
         timer.startTimer();
         dispatchThread.start();
 
