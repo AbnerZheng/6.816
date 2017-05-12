@@ -76,11 +76,11 @@ class ParallelFirewallTest {
 
     public static void main(String[] args) {
         // Validate arguments
-        if (args.length != 14) {
-            System.out.println("ERROR: Expected 14 arguments, got " + args.length + ".");
+        if (args.length != 15) {
+            System.out.println("ERROR: Expected 15 arguments, got " + args.length + ".");
             System.out.println("java SerialFirewallTest [numMilliseconds] [numAddressesLog] [numTrainsLog] " +
                     "[meanTrainSize] [meanTrainsPerComm] [meanWindow] [meanCommsPerAddress] [meanWork] " +
-                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers] [lockType] [queueStrategy]");
+                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers] [lockType] [queueStrategy] [original]");
             return;
         }
 
@@ -99,6 +99,7 @@ class ParallelFirewallTest {
         final int numWorkers = Integer.parseInt(args[11]);
         final int lockType = Integer.parseInt(args[12]);  // TAS, Backoff, ReentrantWrapper, CLH, MCS
         final int queueStrategy = Integer.parseInt(args[13]);  // LockFree, RandomQueue, LastQueue
+        final boolean original = Boolean.parseBoolean(args[14]);  // true for original, false for fill to the max
         final int queueDepth = MAX_PKTS_IN_FLIGHT / numWorkers;
 
         // Initialize values
@@ -122,7 +123,7 @@ class ParallelFirewallTest {
         Histogram histogram = new Histogram();
 
         // Allocate and initialize Dispatcher and Worker threads
-        Dispatcher dispatchData = new Dispatcher(done, queues, packetGenerator, numWorkers);
+        Dispatcher dispatchData = new Dispatcher(done, queues, packetGenerator, numWorkers, original);
         Thread dispatchThread = new Thread(dispatchData);
         List<ParallelWorker> workers = new ArrayList<>();
         List<Thread> workerThreads = new ArrayList<>();
@@ -173,7 +174,7 @@ class ParallelFirewallTest {
         System.out.println("Expected " + exp + " / " + totalPackets + " packets, " + accStr + "% accuracy");
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
         System.out.println(png);
-        System.out.println(r);
+//        System.out.println(r);
         System.out.println("Total packets processed: " + histogram.getTotalPackets());
         System.out.println("-----------------------------------------");
     }

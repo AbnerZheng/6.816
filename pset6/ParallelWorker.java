@@ -178,15 +178,14 @@ class ParallelWorker implements FirewallWorker {
      * @param pkt packet
      */
     private void processPacket(Packet pkt) {
-        return;
-//        switch (pkt.type) {
-//        case ConfigPacket:
-//            handleConfigPacket(pkt.config);
-//            break;
-//        case DataPacket:
-//            handleDataPacket(pkt.header, pkt.body);
-//            break;
-//        }
+        switch (pkt.type) {
+        case ConfigPacket:
+            handleConfigPacket(pkt.config);
+            break;
+        case DataPacket:
+            handleDataPacket(pkt.header, pkt.body);
+            break;
+        }
     }
 
     /**

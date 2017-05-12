@@ -62,10 +62,11 @@ def run_test():
 
     for lock in xrange(len(lock_types)):
         for queue in xrange(len(queue_strategies)):
+            if queue == 0 and lock != 0: continue
             strategy = strategy_to_string(lock, queue)
             print strategy
             for n in num_threads:
-                parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d %s %s' % (
+                parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d %s %s true' % (
                     num_ms, format_params(parameters), n, lock, queue)
                 parallel_pkt_per_ms = run_cmd(parallel_cmd)
                 results[n] = parallel_pkt_per_ms
