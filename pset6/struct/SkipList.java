@@ -17,6 +17,136 @@ interface SkipList<T> {
 }
 
 @SuppressWarnings("unchecked")
+class SequentialSkipList<T> implements SkipList<T> {
+    public final SkipListNode<T> head = new SkipListNode<T>(Integer.MIN_VALUE);
+    public final SkipListNode<T> tail = new SkipListNode<T>(Integer.MAX_VALUE);
+
+    private int randomLevel() {
+        return rand.nextInt(MAX_LEVEL);
+    }
+
+    public class SkipListNode<T> {
+        final T value;
+        final int key;
+        final SkipListNode<T>[] next;
+        private int topLevel;
+
+        /**
+         * Sentinel node constructor
+         * @param key
+         */
+        public SkipListNode(int key) {
+            this.value = null;
+            this.key = key;
+            this.next = new SkipListNode[MAX_LEVEL + 1];
+            this.topLevel = MAX_LEVEL;
+        }
+
+        public SkipListNode(T x, int height) {
+            this.value = x;
+            this.key = x.hashCode();
+            this.next = new SkipListNode[height + 1];
+            this.topLevel = height;
+        }
+    }
+
+    public SequentialSkipList() {
+        for (int i = 0; i < head.next.length; i++) {
+            head.next[i] = tail;
+        }
+    }
+
+    private int find(T x, SkipListNode<T>[] preds, SkipListNode<T>[] succs) {
+        int key = x.hashCode();
+        int lFound = -1;
+        SkipListNode<T> pred = head;
+        for (int level = MAX_LEVEL; level >= 0; level--) {
+            SkipListNode<T> curr = pred.next[level];
+            while (key > curr.key) {
+                pred = curr;
+                curr = pred.next[level];
+            }
+            if (lFound == -1 && key == curr.key) {
+                lFound = level;
+            }
+            preds[level] = pred;
+            succs[level] = curr;
+        }
+        return lFound;
+    }
+
+    // key is included in the range [pred, curr)
+    public SkipListNode<T> findPred(int key) {
+        int lFound = -1;
+        SkipListNode<T> pred = head, curr = null;
+        for (int level = MAX_LEVEL; level >= 0; level--) {
+            curr = pred.next[level];
+            while (key >= curr.key) {
+                pred = curr;
+                curr = pred.next[level];
+            }
+        }
+        return pred;
+    }
+
+    // key is included in the range [pred, curr)
+    public SkipListNode<T> findCurr(int key) {
+        int lFound = -1;
+        SkipListNode<T> pred = head, curr = null;
+        for (int level = MAX_LEVEL; level >= 0; level--) {
+            curr = pred.next[level];
+            while (key >= curr.key) {
+                pred = curr;
+                curr = pred.next[level];
+            }
+        }
+        return curr;
+    }
+
+    public boolean add(T x) {
+        int topLevel = randomLevel();
+        SkipListNode<T> preds[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+        SkipListNode<T> succs[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+
+        // Value already exists
+        if (find(x, preds, succs) != -1) {
+            return false;
+        }
+
+        // Add the new node
+        SkipListNode<T> newNode = new SkipListNode(x, topLevel);
+        for (int level = 0; level <= topLevel; level++)
+            newNode.next[level] = succs[level];
+        for (int level = 0; level <= topLevel; level++)
+            preds[level].next[level] = newNode;
+        return true;
+    }
+
+    public boolean remove(T x) {
+        SkipListNode<T> victim = null;
+        boolean isMarked = false;
+        SkipListNode<T> preds[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+        SkipListNode<T> succs[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+
+        int lFound = find(x, preds, succs);
+        if (lFound == -1) {
+            return false;
+        }
+
+        victim = succs[lFound];
+        for (int level = lFound; level >= 0; level--)
+            preds[level].next[level] = victim.next[level];
+        return true;
+    }
+
+    public boolean contains(T x) {
+        SkipListNode<T> preds[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+        SkipListNode<T> succs[] = (SkipListNode<T>[]) new SkipListNode[MAX_LEVEL + 1];
+        return find(x, preds, succs) != -1;
+    }
+}
+
+@SuppressWarnings("unchecked")
 class LazySkipList<T> implements SkipList<T> {
     public final SkipListNode<T> head = new SkipListNode<T>(Integer.MIN_VALUE);
     public final SkipListNode<T> tail = new SkipListNode<T>(Integer.MAX_VALUE);
