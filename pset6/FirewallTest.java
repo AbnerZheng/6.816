@@ -162,6 +162,7 @@ class ParallelFirewallTest {
         System.out.println("Expected " + exp + " / " + totalPackets + " packets, " + accStr + "% accuracy");
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
         System.out.println(png);
+	System.out.println(histogram);
         System.out.println("Total packets processed: " + histogram.getTotalPackets());
         System.out.println("-----------------------------------------");
     }

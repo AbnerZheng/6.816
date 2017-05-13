@@ -12,7 +12,7 @@ class Histogram {
 
     public Histogram() {
         this.maxValue = 1 << 16;
-        this.numBuckets = 1 << 4;
+        this.numBuckets = 1 << 7;
         this.bucketSize = maxValue / numBuckets;
         buckets = new int[numBuckets];
     }
@@ -43,15 +43,17 @@ class Histogram {
 
     @Override
     public String toString() {
+	System.out.println(numBuckets + " buckets, each of size " + bucketSize + " up to " + maxValue);
 //        String[] strs = new String[numBuckets];
 //        for (int i = 0; i < numBuckets; i++) {
 //            strs[i] = i * bucketSize + "-" + (i + 1) * bucketSize + "\t " + buckets[i];
 //        }
 //        return "Number of Buckets: " + numBuckets + "\nBucket Size: " + bucketSize + "\n" + String.join("\n", strs);
-        String[] strs = new String[numBuckets];
-        for (int i = 0; i < numBuckets; i++) {
-            strs[i] = Integer.toString(buckets[i]);
+//        String[] strs = new String[numBuckets];
+        String strs = "";
+	for (int i = 0; i < numBuckets; i++) {
+            strs += Integer.toString(buckets[i]) + ", ";
         }
-        return strs.toString() + "\nTotal processed: " + getTotalPackets();
+        return strs + "\nTotal processed: " + getTotalPackets();
     }
 }
