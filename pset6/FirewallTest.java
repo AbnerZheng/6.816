@@ -59,14 +59,7 @@ class SerialFirewallTest {
         // Print statistics
         final double time = timer.getElapsedTime();
         final long totalPackets = workerData.totalPackets;
-//        System.out.println("-----------------------------------------");
-//        System.out.println("SERIAL FIREWALL TEST");
-//        System.out.println("Total Time: " + time);
-//        System.out.println("Packets: " + totalPackets);
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
-//        System.out.println("Histogram:");
-//        workerData.printHistogram();
-//        System.out.println("-----------------------------------------");
     }
 }
 

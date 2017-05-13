@@ -19,8 +19,7 @@ parameters = [
     (16, 14, 15, 12, 9, 5,  8840, 0.04, 0.19, 0.76)
 ]
 num_threads = [2, 4, 8]
-NUM_TRIALS = 1
-SERIAL_THRPTS = [192.455696, 236.595973, 409.960946, 706.905432, 141.082443, 83.552160, 143.426330, 109.234685]
+NUM_TRIALS = 5
 
 def format_params(p):
     return '%d %d %d %d %d %d %d %f %f %f' % (
@@ -58,33 +57,35 @@ def run_cmd(cmd):
     outputs.sort()
     return outputs[int(len(outputs) / 2)]
 
-def run_test(id_num, range_start, range_end):
+def run_test(range_start, range_end):
 
     results = { }
+    serial = []
 
     for i in xrange(range_start, range_end):
         p = parameters[i]
         print '-----------------------------------------------'
         print 'Starting for params %s' % str(p)
 
-        # serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
-        # serial_pkt_per_ms = run_cmd(serial_cmd)
-        # if serial_pkt_per_ms is None:
-        #     print 'Couldn\'t parse serial output %s' % str(p)
-        #     continue
-        serial_pkt_per_ms = SERIAL_THRPTS[i]
-
-        for n in num_threads:
-            parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
-            parallel_pkt_per_ms = run_cmd(parallel_cmd)
-            results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
-
-        format_result(results, p)
+        serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
+        serial_pkt_per_ms = run_cmd(serial_cmd)
+        if serial_pkt_per_ms is None:
+            print 'Couldn\'t parse serial output %s' % str(p)
+            continue
+        serial.append(serial_pkt_per_ms)
+        # serial_pkt_per_ms = SERIAL_THRPTS[i]
+        #
+        # for n in num_threads:
+        #     parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
+        #     parallel_pkt_per_ms = run_cmd(parallel_cmd)
+        #     results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
+        #
+        # format_result(results, p)
+    print serial
 
 ##############################################
 
 if __name__ == '__main__':
-    id_num = sys.argv[1]
-    range_start = int(sys.argv[2])
-    range_end = int(sys.argv[3])
-    run_test(id_num, range_start, range_end)
+    range_start = int(sys.argv[1])
+    range_end = int(sys.argv[2])
+    run_test(range_start, range_end)
