@@ -178,15 +178,14 @@ class ParallelWorker implements FirewallWorker {
      * @param pkt packet
      */
     private void processPacket(Packet pkt) {
-        return;
-//        switch (pkt.type) {
-//        case ConfigPacket:
-//            handleConfigPacket(pkt.config);
-//            break;
-//        case DataPacket:
-//            handleDataPacket(pkt.header, pkt.body);
-//            break;
-//        }
+        switch (pkt.type) {
+        case ConfigPacket:
+            handleConfigPacket(pkt.config);
+            break;
+        case DataPacket:
+            handleDataPacket(pkt.header, pkt.body);
+            break;
+        }
     }
 
     /**
@@ -197,20 +196,15 @@ class ParallelWorker implements FirewallWorker {
      * @param header packet header
      * @param body packet body
      */
-    private int match = 0;
-    private int noMatch = 0;
-    private int fails = 0;
     private void handleDataPacket(Header header, Body body) {
         final int source = header.source;
         final int dest = header.dest;
 
-//        System.out.println("MATCH " + match + ", NOMATCH " + noMatch + ", FAIL " + fails);
         // The packet does not have the appropriate permissions
         if (header.tag != tag) {
             try {
                 globalLock.readLock().lock();
                 if (!png.isValid(source) || !r.isValid(source, dest)) {
-                    fails++;
                     return;
                 }
             } finally {

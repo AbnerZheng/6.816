@@ -32,9 +32,9 @@ class ArrayHashTable<T> implements HashTable<T> {
     private enum LockType { READ, WRITE }
 
     private final ArrayHashTable<T>.Node<T>[] table;
-    private final ReentrantReadWriteLock[] locks;
-    private final int NUM_LOCKS = 1 << 4;
-    private final int LOCK_MASK = NUM_LOCKS - 1;
+//    private final ReentrantReadWriteLock[] locks;
+//    private final int NUM_LOCKS = 1 << 4;
+//    private final int LOCK_MASK = NUM_LOCKS - 1;
 
     /**
      * @param logSize the number of potential keys of the hash table is 2**(logSize)
@@ -42,10 +42,10 @@ class ArrayHashTable<T> implements HashTable<T> {
     @SuppressWarnings("unchecked")
     public ArrayHashTable(int logSize) {
         table = (ArrayHashTable<T>.Node<T>[]) new Node[1 << logSize];
-        locks = new ReentrantReadWriteLock[NUM_LOCKS];
-        for (int i = 0; i < NUM_LOCKS; i++) {
-            locks[i] = new ReentrantReadWriteLock();
-        }
+//        locks = new ReentrantReadWriteLock[NUM_LOCKS];
+//        for (int i = 0; i < NUM_LOCKS; i++) {
+//            locks[i] = new ReentrantReadWriteLock();
+//        }
     }
 
     /**
@@ -54,12 +54,12 @@ class ArrayHashTable<T> implements HashTable<T> {
      * @param val corresponding value
      */
     public void add(int key, T val) {
-        try {
-            acquire(key, LockType.WRITE);
+//        try {
+//            acquire(key, LockType.WRITE);
             table[key] = new ArrayHashTable<T>.Node<T>(val);
-        } finally {
-            release(key, LockType.WRITE);
-        }
+//        } finally {
+//            release(key, LockType.WRITE);
+//        }
     }
 
     /**
@@ -68,17 +68,17 @@ class ArrayHashTable<T> implements HashTable<T> {
      * @return true iff the key was successfully removed
      */
     public boolean remove(int key) {
-        try {
-            acquire(key, LockType.WRITE);
+//        try {
+//            acquire(key, LockType.WRITE);
             ArrayHashTable<T>.Node<T> node = table[key];
             if (node != null && !node.deleted) {
                 node.deleted = true;
                 return true;
             }
             return false;
-        } finally {
-            release(key, LockType.WRITE);
-        }
+//        } finally {
+//            release(key, LockType.WRITE);
+//        }
     }
 
     /**
@@ -87,13 +87,13 @@ class ArrayHashTable<T> implements HashTable<T> {
      * @return true iff the key is in the hash table
      */
     public boolean contains(int key) {
-        try {
-            acquire(key, LockType.READ);
+//        try {
+//            acquire(key, LockType.READ);
             ArrayHashTable<T>.Node<T> node = table[key];
             return node != null && !node.deleted;
-        } finally {
-            release(key, LockType.READ);
-        }
+//        } finally {
+//            release(key, LockType.READ);
+//        }
     }
 
     /**
@@ -101,31 +101,31 @@ class ArrayHashTable<T> implements HashTable<T> {
      * @return the value associated with the key
      */
     public T get(int key) {
-        try {
-            acquire(key, LockType.READ);
+//        try {
+//            acquire(key, LockType.READ);
             ArrayHashTable<T>.Node<T> node = table[key];
             if (node != null && !node.deleted) {
                 return node.val;
             }
             return null;
-        } finally {
-            release(key, LockType.READ);
-        }
+//        } finally {
+//            release(key, LockType.READ);
+//        }
     }
 
-    private void acquire(int lock, LockType type) {
-        if (type == LockType.READ)
-            locks[lock & LOCK_MASK].readLock().lock();
-        else if (type == LockType.WRITE)
-            locks[lock & LOCK_MASK].writeLock().lock();
-    }
-
-    private void release(int lock, LockType type) {
-        if (type == LockType.READ)
-            locks[lock & LOCK_MASK].readLock().unlock();
-        else if (type == LockType.WRITE)
-            locks[lock & LOCK_MASK].writeLock().unlock();
-    }
+//    private void acquire(int lock, LockType type) {
+//        if (type == LockType.READ)
+//            locks[lock & LOCK_MASK].readLock().lock();
+//        else if (type == LockType.WRITE)
+//            locks[lock & LOCK_MASK].writeLock().lock();
+//    }
+//
+//    private void release(int lock, LockType type) {
+//        if (type == LockType.READ)
+//            locks[lock & LOCK_MASK].readLock().unlock();
+//        else if (type == LockType.WRITE)
+//            locks[lock & LOCK_MASK].writeLock().unlock();
+//    }
 }
 
 /**

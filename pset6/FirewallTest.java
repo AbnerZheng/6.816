@@ -76,11 +76,11 @@ class ParallelFirewallTest {
 
     public static void main(String[] args) {
         // Validate arguments
-        if (args.length != 14) {
-            System.out.println("ERROR: Expected 14 arguments, got " + args.length + ".");
+        if (args.length != 12) {
+            System.out.println("ERROR: Expected 12 arguments, got " + args.length + ".");
             System.out.println("java SerialFirewallTest [numMilliseconds] [numAddressesLog] [numTrainsLog] " +
                     "[meanTrainSize] [meanTrainsPerComm] [meanWindow] [meanCommsPerAddress] [meanWork] " +
-                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers] [lockType] [queueStrategy]");
+                    "[configFraction] [pngFraction] [acceptingFraction] [numWorkers]");
             return;
         }
 
@@ -97,8 +97,8 @@ class ParallelFirewallTest {
         final double pngFrac = Float.parseFloat(args[9]);
         final double acceptingFrac = Float.parseFloat(args[10]);
         final int numWorkers = Integer.parseInt(args[11]);
-        final int lockType = Integer.parseInt(args[12]);  // TAS, Backoff, ReentrantWrapper, CLH, MCS
-        final int queueStrategy = Integer.parseInt(args[13]);  // LockFree, RandomQueue, LastQueue
+        final int lockType = 2;  // = Integer.parseInt(args[12]);  // TAS, Backoff, ReentrantWrapper, CLH, MCS
+        final int queueStrategy = 1;  // = Integer.parseInt(args[13]);  // LockFree, RandomQueue, LastQueue
         final int queueDepth = MAX_PKTS_IN_FLIGHT / numWorkers;
 
         // Initialize values
@@ -163,17 +163,12 @@ class ParallelFirewallTest {
         final double time = timer.getElapsedTime();
         final long totalPackets = dispatchData.totalPackets;
         System.out.println("-----------------------------------------");
-//        System.out.println("PARALLEL FIREWALL TEST");
-//        System.out.println("Total Time: " + time);
-
-
         final long exp = (long)(totalPackets * configFrac + totalPackets * (1 - configFrac) * (1 - pngFrac) * acceptingFrac);
         final double acc = 100.0 * (1.0 - (float) Math.abs(exp - histogram.getTotalPackets()) / exp);
         final String accStr = String.format("%.2f", acc);
         System.out.println("Expected " + exp + " / " + totalPackets + " packets, " + accStr + "% accuracy");
         System.out.println("PKT_PER_MS " + (double) totalPackets / time + " PKT_PER_MS");
         System.out.println(png);
-        System.out.println(r);
         System.out.println("Total packets processed: " + histogram.getTotalPackets());
         System.out.println("-----------------------------------------");
     }
