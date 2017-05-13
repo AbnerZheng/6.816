@@ -19,7 +19,8 @@ parameters = [
     (16, 14, 15, 12, 9, 5,  8840, 0.04, 0.19, 0.76)
 ]
 num_threads = [2, 4, 8]
-NUM_TRIALS = 5
+NUM_TRIALS = 3
+SERIAL_THRPTS = [141.37791320790237, 184.49784064804243, 314.4454159211706, 803.7628641918951, 122.491790037372, 78.45803793447884, 104.19908198501234, 64.33597561912227]
 
 def format_params(p):
     return '%d %d %d %d %d %d %d %f %f %f' % (
@@ -30,7 +31,7 @@ def format_result(results, p):
     temp = '\\addplot coordinates {\n\t(2, 2S)\n\t(4, 4S)\n\t(8, 8S)\n};'
     for n in num_threads:
         temp = temp.replace('%dS' % n, str(results[(p, n)]))
-    print temp
+    return temp
 
 def run_cmd(cmd):
     print 'Starting command: %s' % cmd
@@ -61,27 +62,28 @@ def run_test(range_start, range_end):
 
     results = { }
     serial = []
+    strs = []
 
     for i in xrange(range_start, range_end):
         p = parameters[i]
         print '-----------------------------------------------'
         print 'Starting for params %s' % str(p)
 
-        serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
-        serial_pkt_per_ms = run_cmd(serial_cmd)
-        if serial_pkt_per_ms is None:
-            print 'Couldn\'t parse serial output %s' % str(p)
-            continue
-        serial.append(serial_pkt_per_ms)
-        # serial_pkt_per_ms = SERIAL_THRPTS[i]
-        #
-        # for n in num_threads:
-        #     parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
-        #     parallel_pkt_per_ms = run_cmd(parallel_cmd)
-        #     results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
-        #
-        # format_result(results, p)
-    print serial
+        # serial_cmd = 'java pset6.SerialFirewallTest %d %s' % (num_ms, format_params(p))
+        # serial_pkt_per_ms = run_cmd(serial_cmd)
+        # if serial_pkt_per_ms is None:
+        #     print 'Couldn\'t parse serial output %s' % str(p)
+        #     continue
+        # serial.append(serial_pkt_per_ms)
+        serial_pkt_per_ms = SERIAL_THRPTS[i]
+
+        for n in num_threads:
+            parallel_cmd = 'java pset6.ParallelFirewallTest %d %s %d' % (num_ms, format_params(p), n)
+            parallel_pkt_per_ms = run_cmd(parallel_cmd)
+            results[(p, n)] = parallel_pkt_per_ms / serial_pkt_per_ms
+        strs.append(format_result(results, p))
+    for string in strs:
+        print string
 
 ##############################################
 
