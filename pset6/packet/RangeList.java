@@ -33,14 +33,14 @@ class RangeList {
 
     // To be replaced with skip lists. Must be some list where all the elements are sorted.
     // A range [a, b) is represented by RangeNode(a, b)
-    LazySkipList<RangeNode> ranges;
+    SequentialSkipList<RangeNode> ranges;
     final int min;
     final int max;
 
     public RangeList(int min, int max) {
         this.min = min;
         this.max = max + 1;
-        ranges = new LazySkipList<RangeNode>();
+        ranges = new SequentialSkipList<RangeNode>();
         ranges.add(new RangeNode(this.min, this.max));
     }
 
@@ -87,7 +87,7 @@ class RangeList {
         ranges.add(new RangeNode(beginToAdd, endToAdd));
 
         // Remove overlapping ranges (pred should be the newly-added range)
-        LazySkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
+        SequentialSkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
         while (currNode.value != null && currNode.value.begin <= endToAdd) {
             ranges.remove(currNode.value);
             currNode = currNode.next[0];
@@ -124,7 +124,7 @@ class RangeList {
         }
 
         // Remove overlapping ranges
-        LazySkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
+        SequentialSkipList<RangeNode>.SkipListNode<RangeNode> currNode = ranges.findCurr(begin);
         while (currNode.value != null && currNode.value.end <= end) {
             ranges.remove(currNode.value);
             currNode = currNode.next[0];
@@ -133,7 +133,7 @@ class RangeList {
 
     @Override
     public String toString() {
-        LazySkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
+        SequentialSkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
         String str = "";
         while (node.value != null) {
             str += node.value.toString() + " ";

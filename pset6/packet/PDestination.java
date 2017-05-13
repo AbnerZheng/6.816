@@ -64,8 +64,8 @@ class PDestination {
         for (int i = 0; i < maxAddress; i++) {
             RangeList list = table.get(i);
             if (list == null) continue;
-            LazySkipList<RangeNode> ranges = list.ranges;
-            LazySkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
+            SequentialSkipList<RangeNode> ranges = list.ranges;
+            SequentialSkipList<RangeNode>.SkipListNode<RangeNode> node = ranges.head.next[0];
             while (node.value != null) {
                 numValid += node.value.end - node.value.begin;
                 node = node.next[0];
